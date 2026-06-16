@@ -1,5 +1,7 @@
 # pg-extension-lab
 
+![pg-extension-lab hero](docs/pg-extension-lab-hero.svg)
+
 **pg-extension-lab is a harness for developing, testing, benchmarking, and tuning a
 PostgreSQL extension — validating observable behavior in an isolated, reproducible
 environment, separately from the implementation.**
@@ -9,6 +11,25 @@ C/PGXS, Rust/pgrx, GPU/CUDA, and extension+microservice projects. Use it to buil
 extension from scratch, **or** to design tuning experiments, write scenarios, and run
 isolation/regression tests against an existing one. Packaged as a Claude Code **plugin
 marketplace** (`.claude-plugin/`) so it installs without manual symlinks.
+
+## Why This Exists
+
+Most PostgreSQL extension work fails in the gaps: a green unit test that never loaded the
+`.so`, a benchmark that compares mismatched recall, a fast path that only wins because the
+fixture is too friendly, or a service integration where the API, fixture, and environment each
+tell a different story.
+
+This skill turns those hard lessons into reusable working material:
+
+- copy-ready PGXS/pgrx test ladders, isolation specs, and CI fragments;
+- filtered ANN and accelerator benchmark harnesses with bounded parameter-space planning;
+- Pareto/frontier reporting that explains where an option fits, not just which number won;
+- hypothesis, evidence, and report templates that keep claims tied to raw artifacts;
+- service-boundary contracts that separately verify API shape, fixture meaning, and effective
+  runtime environment.
+
+The point is not to add ceremony. The point is to make feedback faster, sharper, and harder to
+fake.
 
 ## What's inside
 
