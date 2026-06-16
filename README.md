@@ -1,6 +1,6 @@
 # pg-extension-lab
 
-![pg-extension-lab hero](docs/pg-extension-lab-hero.svg)
+![pg-extension-lab hero](docs/pg-extension-lab-hero.png)
 
 **pg-extension-lab is a harness for developing, testing, benchmarking, and tuning a
 PostgreSQL extension — validating observable behavior in an isolated, reproducible
