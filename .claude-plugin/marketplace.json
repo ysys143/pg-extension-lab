@@ -1,0 +1,29 @@
+{
+  "name": "pg-skills",
+  "owner": {
+    "name": "Jaesol Shin",
+    "email": "ysys143@gmail.com"
+  },
+  "metadata": {
+    "description": "Skills for engineering PostgreSQL extensions — build, test, benchmark, tune.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "pg-skills",
+      "source": "./",
+      "description": "Build, test, benchmark, and tune PostgreSQL extensions (C/PGXS, Rust/pgrx, GPU, microservice).",
+      "version": "0.1.0",
+      "category": "database",
+      "tags": [
+        "postgres",
+        "postgresql",
+        "postgresql-extension",
+        "pgrx",
+        "benchmarking",
+        "tdd",
+        "gpu"
+      ]
+    }
+  ]
+}

@@ -1,41 +1,58 @@
-# pg-extension-lab
+# pg-skills
 
-A [Claude Code](https://docs.claude.com/en/docs/claude-code) **skill** for building,
-testing, benchmarking, and tuning **PostgreSQL extensions** — distilled from real C/PGXS,
-Rust/pgrx, GPU/CUDA, and extension+microservice projects.
+[Claude Code](https://docs.claude.com/en/docs/claude-code) **skills** for engineering
+PostgreSQL extensions — building, testing, benchmarking, and tuning them. Distilled from real
+C/PGXS, Rust/pgrx, GPU/CUDA, and extension+microservice projects.
 
-It is a lab/workbench, not just a scaffolder: use it to develop an extension from scratch,
-**or** to design tuning experiments, write scenarios, and run isolation/regression tests
-against an existing one.
+Packaged as a Claude Code **plugin marketplace** (`.claude-plugin/`) so it installs without
+manual symlinks, with each skill under [`skills/`](skills/).
 
-## What it covers
+## Skills
 
-Three architecture shapes — **A** pure in-process (C/PGXS or Rust/pgrx), **B** extension +
-external microservice, **C** extension + co-located sidecar daemon (GPU/accelerator context,
-resident model, JIT pool) — across five reference categories:
-
-| Category | Highlights |
+| Skill | What it does |
 |---|---|
-| **testing** | C unit / `pg_regress` golden-file / `pg_isolation_regress` concurrency ladder; red→green discipline |
-| **benchmarking** | adversarial correlated fixtures, exact ground truth, matched-recall, SOLID-vs-INDICATIVE trust labeling, the `min_ms` anti-pattern, accelerator-vs-CPU crossover, cost-per-query |
-| **performance** | config-Pareto-before-code, recall-QPS frontiers, lock-contention build profiling, resource governance |
-| **architecture** | Shape B/C, Rust/pgrx conventions, transactional-outbox NOTIFY/LISTEN workers, external AI/LLM provider integration, security hardening |
-| **accelerator** | GPU/CUDA build/ops/benchmark specifics (a specialization, deep path) |
-
-Start at [`SKILL.md`](SKILL.md); each category has a `README.md` index linking to dense,
-single-topic detail files (progressive disclosure).
+| [`pg-extension-lab`](skills/pg-extension-lab/SKILL.md) | A lab/workbench for PostgreSQL extensions: develop from scratch, **or** design tuning experiments, scenarios, and isolation/regression tests for an existing one. Three architecture shapes (in-process / microservice / out-of-process daemon) across testing, benchmarking, performance, architecture, and accelerator categories. |
 
 ## Install
 
-Clone and symlink into your Claude Code skills directory:
+### As a Claude Code plugin (recommended)
 
-```bash
-git clone https://github.com/ysys143/pg-extension-lab.git ~/src/pg-extension-lab
-ln -s ~/src/pg-extension-lab ~/.claude/skills/pg-extension-lab
+```text
+/plugin marketplace add ysys143/pg-skills
+/plugin install pg-skills
 ```
 
-Claude Code auto-discovers the skill by its `description` and activates it when you work on a
-PostgreSQL extension. You can also invoke it explicitly with `/pg-extension-lab`.
+Claude Code clones the repo, registers the bundled skills, and handles updates via the plugin
+manager. Skills auto-activate by their `description`; invoke one explicitly with
+`/pg-extension-lab`.
+
+### Manual (clone + symlink a single skill)
+
+```bash
+git clone https://github.com/ysys143/pg-skills.git ~/src/pg-skills
+ln -s ~/src/pg-skills/skills/pg-extension-lab ~/.claude/skills/pg-extension-lab
+```
+
+## Layout
+
+```
+pg-skills/
+  .claude-plugin/
+    marketplace.json     # marketplace manifest (this repo as a marketplace)
+    plugin.json          # plugin manifest; skills: ./skills/
+  skills/
+    pg-extension-lab/
+      SKILL.md           # overview + navigation
+      references/        # testing/ benchmarking/ performance/ architecture/ accelerator/
+  README.md
+  LICENSE
+```
+
+## Adding a skill
+
+Create `skills/<name>/SKILL.md` (with YAML frontmatter `name` + `description`), keep heavy
+detail in `skills/<name>/references/<category>/`, and add a row to the **Skills** table above.
+The plugin manifest's `"skills": "./skills/"` picks it up automatically.
 
 ## License
 
