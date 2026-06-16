@@ -1,0 +1,32 @@
+[run]
+seed = 42
+k = 10
+queries = 10
+output = "results_pgvector_smoke.json"
+
+[dataset]
+name = "synthetic-smoke"
+rows = 1000
+dims = 16
+selectivities = [0.01, 0.05, 0.10]
+correlated = true
+
+[pgvector_example]
+dsn = "postgresql://postgres:postgres@localhost:5432/postgres"
+table = "bench_items"
+id_column = "id"
+vector_column = "embedding"
+filter_column = "category"
+distance_operator = "<->"
+extension_sql = "CREATE EXTENSION IF NOT EXISTS vector"
+index_sql = "CREATE INDEX IF NOT EXISTS bench_items_embedding_idx ON bench_items USING hnsw (embedding vector_l2_ops)"
+search_guc = "hnsw.ef_search"
+search_values = [20, 40, 80]
+
+[targets.pgvector_example]
+module = "examples.pgvector_target"
+enabled = true
+
+[targets.prefilter_exact]
+module = "targets.prefilter_exact"
+enabled = true

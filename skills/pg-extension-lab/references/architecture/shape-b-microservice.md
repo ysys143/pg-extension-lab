@@ -22,8 +22,8 @@ a full Rust/pgrx + multi-service AI extension, see:
   `#[pg_extern]` attrs, per-function unit tests, dev-loop traps).
 - **`async-outbox.md`** — if a function enqueues async work (transactional outbox +
   NOTIFY/LISTEN worker, claim/retry/reaper, deterministic worker tests).
-- **`external-service.md`** — if the service calls a paid/external provider
-  (config registry, provider abstraction, the data-contract invariant, mock-vs-real testing).
+- **`external-service.md`** — if the extension crosses a service boundary
+  (registry-owned configuration, data-contract invariant, mock-vs-real testing).
 - **`security.md`** — `SECURITY DEFINER` + `search_path`, ACL, secrets-by-reference,
   SSRF.
 

@@ -1,0 +1,19 @@
+[budget]
+max_cells = 24
+max_minutes = 30
+
+[fixed]
+k = [10]
+dataset = ["synthetic-smoke"]
+targets = ["postgres_sql", "prefilter_exact"]
+
+[scout]
+selectivity = [0.01, 0.05, 0.10]
+search_value = [20, 40, 80, 160]
+concurrency = [1, 4, 8]
+
+[frontier]
+# Cells known or suspected to affect recall/QPS/pages frontiers.
+selectivity = [0.01, 0.05]
+search_value = [40, 80, 160]
+concurrency = [1, 8]

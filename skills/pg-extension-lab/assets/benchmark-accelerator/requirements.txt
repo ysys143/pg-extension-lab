@@ -1,0 +1,2 @@
+# No required dependencies for the smoke harness.
+# Add backend-specific packages such as numpy, faiss-cpu, or GPU SDK bindings in the target repo.

@@ -1,0 +1,2 @@
+run_id,stage,ring,dataset,dataset_hash,postgres_version,extension_version,target,scenario,rows,dims,k,search_value,recall_at_k,qps,p50_ms,p95_ms,p99_ms,pages_total_mean,pages_hit_mean,pages_read_mean,device,host,cost_usd_per_hour,energy_j_per_query,trust_label,command
+

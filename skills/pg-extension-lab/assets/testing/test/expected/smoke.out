@@ -1,0 +1,6 @@
+CREATE EXTENSION
+   extname
+--------------
+ my_extension
+(1 row)
+

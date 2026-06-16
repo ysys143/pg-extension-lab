@@ -1,0 +1,46 @@
+[run]
+seed = 42
+k = 10
+queries = 10
+output = "results_smoke.json"
+
+[dataset]
+name = "synthetic-smoke"
+rows = 1000
+dims = 16
+selectivities = [0.01, 0.05, 0.10]
+correlated = true
+
+[postgres_sql]
+dsn = "postgresql://postgres:postgres@localhost:5432/postgres"
+setup_sql = [
+  "DROP TABLE IF EXISTS {table}",
+  "CREATE TABLE {table} ({id_column} int PRIMARY KEY, {vector_column} text, {filter_column} int)"
+]
+insert_sql = "INSERT INTO {table} ({id_column}, {vector_column}, {filter_column}) VALUES (%s, %s, %s)"
+insert_params = ["id", "query_vector", "filter_value"]
+after_load_sql = ["ANALYZE {table}"]
+query_sql = """
+SELECT {id_column}
+FROM {table}
+WHERE {filter_column} = %s
+ORDER BY {id_column}
+LIMIT %s
+"""
+query_params = ["filter_value", "k"]
+teardown_sql = ["DROP TABLE IF EXISTS {table}"]
+search_values = [20, 40, 80]
+
+[postgres_sql.context]
+table = "bench_items"
+id_column = "id"
+vector_column = "embedding_payload"
+filter_column = "category"
+
+[targets.postgres_sql]
+module = "targets.postgres_sql"
+enabled = false
+
+[targets.prefilter_exact]
+module = "targets.prefilter_exact"
+enabled = true

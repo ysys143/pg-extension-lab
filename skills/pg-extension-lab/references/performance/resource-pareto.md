@@ -29,22 +29,23 @@ Two gates, in order, before any optimization code is written:
    Optimize the real bottleneck, not the assumed one.
 
 Skipping the config gate is the classic failure: you write a clever optimization, it helps,
-and you never learn that `payload_m=32` would have given the same build-time win for free.
+and you never learn that a cheaper configuration cell would have given the same build-time win
+for free.
 
 ### Config-Pareto recipe
 
 Pick the 2–3 knobs that trade resource for performance and grid them:
 
 ```
-payload_m ∈ {16, 32, 64}   ×   max_parallel_maintenance_workers ∈ {16, 30}
+aux_edges_per_node ∈ {16, 32, 64}   ×   max_parallel_maintenance_workers ∈ {16, 30}
 ```
 
 For each cell record **build time + index size + filtered recall at sel {1,10}%**. Read it
 as a frontier:
 
 - Hypothesis form: "workers=16 ties or beats 30 (less contention) → make 16 the default."
-- Hypothesis form: "payload_m=32 cuts build ~30% with negligible recall loss → reconsider
-  the default."
+- Hypothesis form: "aux_edges_per_node=32 cuts build ~30% with negligible recall loss →
+  reconsider the default."
 
 Each accepted hypothesis is a free win that shrinks the remaining work for code. With a 1M
 fixture preloaded, each build is ~5–8 min, so the whole grid is an afternoon.
@@ -96,8 +97,8 @@ sys ~8%) — workers were waiting on locks, not computing. Consequences:
     (N allocations → O(N/chunk) lock acquisitions);
   - shortening a global entry-point lock's critical section (atomic snapshot read + release
     instead of holding shared across the whole insert);
-  - a **two-pass build** that separates the extension-specific cost (payload edges) from the
-    base-graph build so the base pass parallelizes like stock pgvector and the payload pass
+  - a **two-pass build** that separates the extension-specific cost (auxiliary edges or
+    metadata) from the base-graph build so the base pass parallelizes like the baseline and the auxiliary pass
     becomes node-independent (embarrassingly parallel).
 
 Verify each contention fix the same way you found the problem: idle % should drop and
@@ -110,9 +111,9 @@ the old path stays measurable side-by-side.
 
 | Lever | Resource cost | Performance effect | Notes |
 |---|---|---|---|
-| `payload_m` (payload neighbors/node) | build time ↑, index size ↑ | filtered recall ↑ | the dominant build-cost lever; up to ~3× neighbors vs base graph |
-| `acorn_gamma` (candidate-queue width) | build time ↑ | recall ↑ (keeps filter-failing bridge nodes) | the mechanism that beats filter-blind HNSW |
-| inline vs non-inline vectors | index size ↑↑ (4 GB vs 0.3 GB seen) | latency ↓ (vectors co-located, fewer fetches) | a latency play, not a footprint play |
+| auxiliary edges per node | build time ↑, index size ↑ | filtered recall ↑ | often the dominant build-cost lever in filtered-graph designs |
+| bridge candidate width | build time ↑ | recall ↑ (keeps filter-failing bridge nodes) | one mechanism for beating filter-blind graph search |
+| inline vs non-inline payload values | index size ↑↑ | latency ↓ (values co-located, fewer fetches) | a latency play, not a footprint play |
 | `ef_construction` | build time ↑ | recall ↑ | standard HNSW knob |
 | `maintenance_work_mem` | RAM ↑ | avoids spill → build time ↓ | size to keep the build in memory |
 | parallel workers | cores | build time ↓ **only until lock contention saturates** | non-lever past ~16 here; fix contention first |

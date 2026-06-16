@@ -1,0 +1,27 @@
+# Merge into a C/PGXS extension Makefile.
+# Required edits: EXTENSION, MODULE_big/OBJS, REGRESS, ISOLATION.
+
+EXTENSION ?= my_extension
+REGRESS ?= smoke
+ISOLATION ?= concurrent_insert_scan
+
+PG_CONFIG ?= pg_config
+PGXS := $(shell $(PG_CONFIG) --pgxs)
+include $(PGXS)
+
+.PHONY: unit installcheck-isolation clean-unit
+
+unit: test/unit/test_algorithm
+	./test/unit/test_algorithm
+
+test/unit/test_algorithm: test/unit/test_algorithm.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -Wextra -Werror -o $@ $<
+
+installcheck-isolation:
+	tmp_schedule=$$(mktemp); \
+	printf "test: $(ISOLATION)\n" > "$$tmp_schedule"; \
+	pg_isolation_regress --inputdir=test --outputdir=test --schedule="$$tmp_schedule"; \
+	rm -f "$$tmp_schedule"
+
+clean-unit:
+	rm -f test/unit/test_algorithm

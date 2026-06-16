@@ -80,7 +80,7 @@ A security doc that implies total coverage is dishonest. Enumerate explicitly wh
 extension does **not** defend against and the per-gap mitigation, e.g.:
 
 - Malicious *owner* / leaked env — out of scope (the owner can read secrets by definition).
-- No rate-limiting → "mitigate at the provider project spend-limit level."
+- No rate-limiting → "mitigate at the external dependency, account, or gateway limit."
 - Shared NOTIFY channel can be spoofed by anyone who can `NOTIFY` → document it; the result
   table (source of truth) is still authoritative.
 - No RLS on the results table → note it if multi-tenant isolation is needed.

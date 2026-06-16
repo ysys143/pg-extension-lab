@@ -20,7 +20,7 @@ architecture shapes (in-process / microservice / out-of-process daemon) across f
 categories — **testing** (C unit / `pg_regress` golden-file / `pg_isolation_regress`
 concurrency), **benchmarking** (matched-recall, trust labeling, accelerator-vs-CPU crossover,
 cost-per-query), **performance** (resource-vs-performance Pareto, governance), **architecture**
-(Rust/pgrx, async outbox workers, external-provider integration, security), and **accelerator**
+(Rust/pgrx, async outbox workers, service-boundary contracts, security), and **accelerator**
 (GPU/CUDA specifics).
 
 ## Install
@@ -53,7 +53,8 @@ pg-extension-lab/
   skills/
     pg-extension-lab/
       SKILL.md           # overview + navigation
-      references/        # testing/ benchmarking/ performance/ architecture/ accelerator/
+      references/        # testing/ benchmarking/ performance/ architecture/ accelerator/ harnesses/
+      assets/            # reusable harness templates: testing, benchmarks, service contracts, ops
   README.md
   LICENSE
 ```

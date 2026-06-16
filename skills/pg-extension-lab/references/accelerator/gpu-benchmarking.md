@@ -9,7 +9,7 @@ accounting, and rig details that illustrate those generic rules.
 
 ## Latency decomposition (where the time goes once the kernel is fast)
 
-Once CAGRA collapses the distance math to a ~715 µs GPU kernel, the bottleneck moves
+Once the GPU search kernel collapses the distance math to a sub-millisecond kernel, the bottleneck moves
 off arithmetic:
 
 - **IPC round-trip ≈ 33%** of query latency (backend ↔ daemon over the Unix socket).
@@ -20,7 +20,7 @@ The benchmark's job is characterizing this *shift*, not quoting a single speedup
 
 ## Crossover numbers (the surface)
 
-- Latency: CAGRA p50 871→1228 µs across N=1K→100K (near-flat); HNSW grows 224→8232 µs →
+- Latency: GPU path p50 871→1228 µs across N=1K→100K (near-flat in the reference run); CPU graph path grows 224→8232 µs →
   **latency crossover ≈ N 10K–100K**. Below ~10K, CPU HNSW wins on every axis (IPC round-trip
   not worth it for a tiny search).
 - Build: advantage widens with both N and dim — 9× at 100K×384 → 36× at 1M×1536. **Higher
@@ -41,7 +41,7 @@ correctness rule.
   batch kernel ~1.27 ms ≈ 1.8× the Q=1 kernel for 100× queries). Report single-query latency
   and batched throughput as **separate benchmarks with opposite winners.**
 - Micro-batch concurrent single-query requests via a coalescing window
-  (`cuvs.bf_batch_wait_us` ~100–1000 µs) into one Q=N kernel.
+  (`accelerator.batch_wait_us` ~100–1000 µs) into one Q=N kernel.
 - Single-device throughput ceiling ≈ ~1K QPS (small/medium N), IPC-bound; sharding is the
   only way past (+70% latency / +13% recall in one case). State it as a limitation.
 
@@ -57,7 +57,7 @@ correctness rule.
 ## Ground truth & honesty (GPU specifics)
 
 - GT with an **independent** exact engine: faiss-cpu/flat ≤1M, **faiss-gpu/flat ≥10M**
-  (different GPU impl from the cuVS SUT → no circular validation). Stream base vectors via
+  (different implementation from the system under test → no circular validation). Stream base vectors via
   `COPY TO STDOUT` to avoid a 72 GB fbin. **GT and loader must share the same batch/RNG
   path** — a mismatch desynced the RNG and gave recall = 0.0 everywhere.
 - Warm (daemon-resident, load confirmed) vs cold-start (VRAM reload ~150 MB/s) are separate
@@ -72,13 +72,13 @@ correctness rule.
 ## VRAM as a published result
 
 The resource ceiling is a real finding, printed verbatim: "50M×384 fp32 = 73 GiB >
-2×40 GB VRAM → CAGRA FAILED." VRAM-budget and shard-count sweeps are run *as benchmarks*
+2×40 GB VRAM → GPU INDEX BUILD FAILED." VRAM-budget and shard-count sweeps are run *as benchmarks*
 (`gpu_resources_bench.csv`), with `peak_vram_mb / gpu_s / energy_j` columns alongside latency.
 See resource governance in `../performance/governance.md`.
 
-## Cost-model calibration (cuvsamcostestimate)
+## Cost-model calibration
 
-The planner cost callback (`cuvsamcostestimate`) decides GPU vs seqscan/pgvector and stats a
+The planner cost callback decides accelerated path vs seqscan/baseline index and stats a
 `.stale` sidecar to force cost `1e9` when the index is stale. Calibrate per
 `../benchmarking/crossover-and-cost.md` §6: measure forced curves once, verify the planner's pick by
 EXPLAIN-only sweeps, pass on **regret + ε-band**.

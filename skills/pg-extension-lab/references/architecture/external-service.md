@@ -1,115 +1,173 @@
-# Reference: integrating an external (often paid) service / provider
+# Reference: external service boundaries and data contracts
 
-When the extension calls out to an external API — an LLM/embedding provider, a model server,
-any third-party HTTP service — these patterns keep it provider-agnostic, configurable,
-testable without paying, and safe. (Security specifics — secrets, SSRF — are in
-`security.md`; this file is about the integration shape.)
+Use this when a PostgreSQL extension delegates work to a separately deployed service, worker,
+or daemon. The lesson is not "add an API client." The lesson is that split components stay
+correct only when their shared contract is explicit, versioned, and executable.
+
+Security specifics such as secrets, outbound allowlists, and `SECURITY DEFINER` are in
+`security.md`; this file covers the integration shape.
 
 ---
 
 ## Contents
 
-- [Config lives in the DB as a registry, not in code](#config-lives-in-the-db-as-a-registry-not-in-code)
-- [Provider abstraction: swap via env, native adapter only for the odd one out](#provider-abstraction-swap-via-env-native-adapter-only-for-the-odd-one-out)
-- [The data-contract invariant (ADR-007)](#the-data-contract-invariant-the-most-important-lesson-adr-007)
-- [Testing against a paid external dependency: mock vs real](#testing-against-a-paid-external-dependency-mock-vs-real)
-- [Benchmarking a RAG / embedding / LLM pipeline](#benchmarking-a-rag--embedding--llm-pipeline)
-- [Observability with zero external infra](#observability-with-zero-external-infra)
+- [Do not start from the API surface](#do-not-start-from-the-api-surface)
+- [Triple-confirm API, fixture, and environment](#triple-confirm-api-fixture-and-environment)
+- [Registry-owned configuration](#registry-owned-configuration)
+- [One authority per durable object](#one-authority-per-durable-object)
+- [The data-contract invariant](#the-data-contract-invariant)
+- [Mock vs real verification](#mock-vs-real-verification)
+- [Benchmarking across a service boundary](#benchmarking-across-a-service-boundary)
+- [Observability without adding a platform](#observability-without-adding-a-platform)
 
 ---
 
-## Config lives in the DB as a registry, not in code
+## Do not start from the API surface
 
-Put endpoints/models/pipelines in catalog tables the extension owns:
+An external component usually exposes more methods, flags, and endpoints than the extension
+should care about. Start by reading docs to understand the intended contract, then inspect
+source, schemas, migrations, tests, and a minimal execution path to find the real contract.
 
+The design target is a narrow boundary:
+
+- the extension exposes SQL-visible behavior;
+- the service owns one explicit capability;
+- shared state is represented as rows, payloads, status transitions, and versioned
+  invariants;
+- calls across the boundary are idempotent, timeout-bounded, and observable.
+
+If the boundary is not narrow, the extension turns into a remote-control panel for another
+system. That makes testing slow, failures ambiguous, and security review nearly impossible.
+
+## Triple-confirm API, fixture, and environment
+
+When a database extension is attached to a model-like or externally hosted service, failures
+often hide in three different layers that look similar from SQL: the API can be called
+correctly, the fixture can ask the wrong question, or the runtime environment can silently
+change the behavior.
+
+Treat these as three independent evidence tracks:
+
+| Track | What to verify | Typical hidden failure |
+|---|---|---|
+| **API contract** | request/response schema, auth, timeout, retry, idempotency, error shape, version | SDK accepts the call but maps options differently; mock omits a required field; errors are not stable |
+| **Fixture semantics** | input rows, expected rows, deterministic IDs, payload version, oracle, cleanup | fixture is too friendly, uses stale rows, tests only "returns something", or encodes the old contract |
+| **Environment** | endpoint, env vars, catalog registry row, container image, network path, dependency versions, runtime flags | local and CI call different endpoints; blank env overrides default; old volume/schema persists; service version drift |
+
+Do not collapse these into one E2E test. A good boundary suite has:
+
+- a contract test that can fail before PostgreSQL is involved;
+- a SQL-visible fixture test that proves the extension interprets service results correctly;
+- an environment probe that prints the effective endpoint, contract version, dependency
+  version, and registry row used for the run;
+- a real-service smoke that is gated and labeled as compatibility/latency evidence, not the
+  primary correctness oracle.
+
+If an end-to-end run fails, classify the failure as API, fixture, or environment before
+changing code. Otherwise the next "fix" may only retune the fixture around the same broken
+contract.
+
+## Registry-owned configuration
+
+Put integration configuration in catalog tables the extension owns when the setting affects
+stored data, replay, authorization, or result interpretation:
+
+```text
+ext.service_endpoints  (name, base_url, auth_ref, timeout_ms, ...)
+ext.contract_versions  (name, version, payload_schema, result_schema, ...)
+ext.pipelines          (name, endpoint, contract_version, runtime_options, ...)
 ```
-ai.endpoints  (name, base_url, api_key_env, ...)   -- where + how to auth
-ai.models     (name, endpoint, dim, metric, ...)   -- a usable model on an endpoint
-ai.pipelines  (name, embed_model, ...)             -- a named config bundle callers reference
-```
 
-Callers reference a *pipeline name*; everything resolvable changes in one place. This beats
-per-call URL/model arguments (un-auditable, an SSRF hole) and per-service env (causes drift —
-see the invariant below).
+Callers reference a named pipeline or contract row. They should not pass arbitrary URLs,
+payload formats, or interpretation knobs per call. Per-call freedom is hard to audit and often
+turns into SSRF, mixed-state behavior, or unreproducible results.
 
-## Provider abstraction: swap via env, native adapter only for the odd one out
+Environment variables are still useful for deployment-local secrets and hostnames, but they
+must not be the only source of a data-changing invariant. If two services can drift by setting
+different env values, the registry is missing a contract.
 
-Wrap each provider behind one thin abstraction (`embed(texts)`, `generate(messages)`). The
-big win: **any OpenAI-compatible endpoint works by changing env only — no code change.** One
-abstraction covers OpenAI, Gemini (compat mode), OpenRouter, Ollama, vLLM, local servers;
-write a *native* adapter only for a provider with an incompatible API (e.g. Anthropic
-messages). The provider matrix becomes a documentation table, not a code fork:
+## One authority per durable object
 
-```
-LLM_PROVIDER=openai  OPENAI_BASE_URL=<compat endpoint>  LLM_MODEL=...  EMBED_MODEL=...
-```
+In a split extension + service design, exactly one component creates and migrates each durable
+object. The other component consumes it through a typed contract.
 
-Empty-string env trap: a base-url env set to `""` is *not* the same as unset — many SDKs use
-the empty string as the base URL and fail with a connection error. Strip empty values at
-service startup (`del os.environ["X"]` if blank).
+Examples:
 
----
+- If the extension owns the table, the service writes only through the approved SQL/API path.
+- If the service owns the table, the extension treats it as a remote system and validates the
+  returned contract instead of assuming catalog control.
+- If an async worker owns status transitions, SQL functions enqueue and read state; they do
+  not also invent alternate state machines.
 
-## The data-contract invariant (the most important lesson; ADR-007)
+Two DDL authorities for the same object is not flexibility. It is silent drift with better
+packaging.
 
-Independently-deployable services can be **independently callable yet not independently
-consistent** — they are coupled by a *data contract*, not by code. For an ingest path + query
-path over the same store, the embedding **model + dimension + metric + collection** is a
-shared invariant. Violate it (write side embeds with model A, read side queries with model B)
-and you get **silent corruption — wrong results, not an error.**
+## The data-contract invariant
 
-Consequences for any split-compute design:
+Independently deployable components can be independently callable yet not independently
+consistent. They are coupled by a data contract, not by code.
 
-- Split compute freely, but **never fork the registry** — bind the model choice to the
-  *pipeline registry row*, not to per-service env (per-service env is exactly how write/read
-  drift happens).
-- An invariant-changing operation (change embed model/dim) must be a **guarded** operation
-  that forces re-ingest, never a silent config edit. Enforce it at runtime (fail loud on a
-  dimension mismatch — see `async-outbox.md`), not just by convention.
+A shared invariant is any value that changes how persisted data is interpreted: payload
+schema, result schema, identity mapping, version, metric, normalization rule, authorization
+scope, retry semantics, timeout budget, or external resource placement. If two components
+disagree on one of these, the system may return plausible but wrong results.
 
----
+Rules:
 
-## Testing against a paid external dependency: mock vs real
+- Bind shared invariants to a registry row or migration, not scattered env variables.
+- Validate the invariant at startup and at the request boundary.
+- Treat invariant changes as migrations. State whether old and new rows can coexist.
+- Fail loud on mixed-state input. A wrong result is worse than a rejected request.
+- Record the invariant version in result artifacts so reports can be reproduced.
 
-- **Mock for correctness/CI ($0, offline, deterministic).** Ship a mock server that mimics
-  the provider's API; the full E2E (`make run-rag-mock`) runs in CI on every PR with no API
-  key and no cost. The mock returns fixed embeddings/completions so assertions are stable.
-- **Real for a sanity check / latency, gated and cost-minimized.** `make run-rag-real` hits
-  the live API; use the cheapest model (e.g. a `-mini`, ~$0.001/run) and require the key only
-  here. Correctness rests on the mock; the real run is a small confidence check.
-- The E2E asserts the *pipeline contract* end to end: ingest → wait-for-async-complete →
-  chunks stored → search returns rows → ask returns an answer → cleanup. Isolate test data by
-  a unique `collection` so cleanup is automatic and reruns don't collide.
+Use `assets/operations/service-boundary-contract.md` as the lightweight artifact template.
 
----
+## Mock vs real verification
 
-## Benchmarking a RAG / embedding / LLM pipeline
+Mocks and real services answer different questions.
 
-The external call dominates, so the methodology differs from a pure-DB benchmark:
+- **Mock/stub path:** proves contract shape, SQL behavior, retries, idempotency, status
+  transitions, cleanup, and failure handling. It should run in CI without credentials or
+  network dependency.
+- **Real path:** proves compatibility with the deployed dependency, latency envelope, rate
+  limits, authentication, and operational failure modes. It should be gated, small, and
+  explicitly labeled.
 
-- **Say the network is in the path, and give the without-network estimate.** "All timings
-  include the provider round-trip; pure-DB latency is much lower (a local embed model would
-  drop p50 to ~10–30 ms)." Never present provider-network latency as engine latency.
-- **Mock for correctness, real for latency (latency is the point).** The inverse of the
-  testing split: the *bench* runs real, flagged network-dominated; *correctness* uses the
-  mock.
-- **Avoid the throughput anti-metric.** "docs/min" is meaningless without controlling
-  document size — report `chars/min` or an explicit `est_tokens = chars/4` ("rough, relative
-  comparison only").
-- **Attribute every latency delta to a named cause.** Split search into dense / hybrid / MMR
-  with p50/p95/p99 and annotate the source of each delta (hybrid = "network + BM25 scan";
-  MMR = "numpy cosine loop over fetch_k"), computed live as the difference.
-- **The harness owns the full lifecycle** — cleanup → setup → measure → cleanup — and is
-  idempotent across runs (clean any previous run first).
-- **Filter-correctness can't be asserted by "0 results."** Vector search has no similarity
-  threshold, so you can't prove a filter excluded everything; instead assert **every returned
-  row matches the filter.**
+The mock is not allowed to fake the contract itself. If the real service requires a field,
+ordering rule, status code, or idempotency behavior, the mock should enforce it too. The mock
+may fake expensive computation; it must not fake boundary semantics.
 
----
+## Benchmarking across a service boundary
 
-## Observability with zero external infra
+Do not mix local engine latency with service-boundary latency without labeling it.
 
-Defer Prometheus until actually needed. Emit **structured JSON logs** (one object per line to
-stdout, custom fields via `extra=`), and persist usage/cost into the result row's JSON
-(`ai.results.data`), exposed as a SQL view (`usage_v1`). Observability becomes
-`docker logs | jq` plus SQL `GROUP BY` — no new infrastructure.
+Report separately:
+
+- SQL-visible end-to-end latency;
+- local database work;
+- external call time;
+- queue wait time if async;
+- retry count and timeout count;
+- throughput denominator, including payload size or work units.
+
+For fair comparison, equalize the decision condition, not the implementation knobs. If one
+design is synchronous and another is async, compare under the same user-visible contract:
+freshness target, timeout budget, retry policy, and failure semantics.
+
+If one design is absolutely better, state a mechanism hypothesis. For example: "the async
+path wins because it batches fixed per-call overhead." Then look for the hidden dimension
+where the claim should stop holding: small payloads, low concurrency, strict freshness, or
+retry storms.
+
+## Observability without adding a platform
+
+Start with durable, queryable evidence before adding infrastructure:
+
+- structured logs with request id, contract version, status transition, retry count, and
+  external latency;
+- result rows that include compact usage/cost/error metadata;
+- SQL views for operational summaries;
+- reports that link raw result JSON/CSV, logs, and reproduce commands.
+
+The point is not more dashboards. The point is that a failed or slow boundary crossing can be
+attributed to the right layer without guessing.

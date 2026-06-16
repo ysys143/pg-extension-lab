@@ -1,0 +1,16 @@
+# Copy these targets into a pgrx extension Makefile if useful.
+# Required edits: PG_VERSION and FEATURE flags.
+
+PG_VERSION ?= 16
+
+.PHONY: pgrx-test pgrx-installcheck pgrx-schema
+
+pgrx-test:
+	cargo test --all --all-features
+
+pgrx-installcheck:
+	cargo pgrx test pg$(PG_VERSION)
+
+pgrx-schema:
+	cargo pgrx schema > /tmp/pgrx-schema.sql
+

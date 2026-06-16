@@ -32,10 +32,10 @@ types you need. This catches logic bugs in milliseconds without a running cluste
 ```makefile
 .PHONY: unit
 unit:
-	$(CC) $(CFLAGS) -o test/unit/test_acorn_scan  test/unit/test_acorn_scan.c
-	$(CC) $(CFLAGS) -o test/unit/test_acorn_build test/unit/test_acorn_build.c
-	test/unit/test_acorn_scan
-	test/unit/test_acorn_build
+	$(CC) $(CFLAGS) -o test/unit/test_index_scan  test/unit/test_index_scan.c
+	$(CC) $(CFLAGS) -o test/unit/test_index_build test/unit/test_index_build.c
+	test/unit/test_index_scan
+	test/unit/test_index_build
 ```
 
 Use unit tests for anything you can isolate from `palloc`/buffer manager/catalog. If a
@@ -57,12 +57,11 @@ written to `test/results/<name>.out`.
    thresholds, error messages on edge cases.
    ```sql
    \set ON_ERROR_STOP on
-   CREATE EXTENSION IF NOT EXISTS vector;
-   CREATE EXTENSION IF NOT EXISTS pg_acorn;
+   CREATE EXTENSION my_extension;
    -- AM registered?
-   SELECT amname FROM pg_am WHERE amname = 'acorn_hnsw';
+   SELECT amname FROM pg_am WHERE amname = 'my_index_am';
    -- GUC exists?
-   SHOW pg_acorn.enable_hook;
+   SHOW my_extension.enable_hook;
    -- behavior:
    SELECT count(*) > 0 AS returns_rows FROM ... ORDER BY embedding <-> '[...]' LIMIT 10;
    ```
@@ -85,8 +84,8 @@ written to `test/results/<name>.out`.
 |---|---|---|
 | `smoke` | extension loads, objects exist | AM in `pg_am`, GUCs present, `CREATE EXTENSION` |
 | `tier1_*` | one behavior in isolation | a single hook fires |
-| `tier2_*` | one feature surface | payload edges, code cache (+ DML, + evict), build params (mwm, parallel, two-pass), ef_search, auto_ef, scan_stats, inline_vectors, diversify, emission_order |
-| `recall_*` | quality gates | `recall_filter`, `recall_gamma`, `recall_insert` |
+| `tier2_*` | one feature surface | auxiliary edges, code cache (+ DML, + evict), build params (memory, parallel, two-pass), search budget, auto tuning, scan stats, inline payloads, diversify, emission order |
+| `recall_*` | quality gates | `recall_filter`, `recall_bridge_width`, `recall_insert` |
 | `no_regression` | catch-all guard | behaviors that must never change |
 
 ---
@@ -99,7 +98,7 @@ diffs against a golden `.out`.
 
 ```
 # test/specs/concurrent_insert_scan.spec
-setup    { CREATE EXTENSION ...; CREATE TABLE ...; CREATE INDEX ... USING acorn_hnsw ...; }
+setup    { CREATE EXTENSION ...; CREATE TABLE ...; CREATE INDEX ... USING my_index_am ...; }
 teardown { DROP TABLE ... CASCADE; }
 
 session "scanner"
@@ -115,7 +114,7 @@ step "insert_match" { INSERT INTO t(bucket, embedding) VALUES (1, '[...]'); }
 Register specs in the `ISOLATION` Makefile list. Use isolation tests for: scan consistency
 under concurrent insert (snapshot semantics — a row inserted before the scan's snapshot
 must appear, after must not), build under concurrent DML, cache insert/evict racing a scan,
-concurrent gamma build. The golden `.out` captures the *expected* result of every
+concurrent auxiliary-structure build. The golden `.out` captures the *expected* result of every
 permutation, including which steps block.
 
 ---
@@ -179,7 +178,7 @@ The SQL and spec files are environment-agnostic. Only the runner changes.
 | Target | Command | Notes |
 |---|---|---|
 | Local | `make installcheck` / `make installcheck-isolation` | needs `PG_CONFIG` on PATH |
-| Docker | `make docker-test` (`docker-build` → regress + isolation in container) | PG17 + pgvector image |
+| Docker | `make docker-test` (`docker-build` → regress + isolation in container) | pinned PostgreSQL + extension dependencies image |
 | Docker unit | `make docker-unit` | C unit tests, no PG needed |
 | VM | `make vm-test` (regress), `make vm-test-all` (unit→regress→isolation) | over SSH; `PG_CONFIG_REMOTE` |
 | VM full cycle | `make vm-cycle` | sync → build → install → test in one shot |
@@ -196,7 +195,7 @@ the Shape-B deploy mechanics are in `../architecture/shape-b-microservice.md`.)
 |---|---|---|
 | `function/operator does not exist` at green | `.so` not reinstalled after edit | `make install` (and reconnect; the backend caches the loaded library) |
 | regression diff in whitespace/row order only | unordered query | add `ORDER BY`; never rely on heap/scan order in a golden |
-| golden passes locally, fails on VM | PG minor version / locale / `pgvector` version differs | pin versions; keep the Docker image and VM in lockstep |
+| golden passes locally, fails on VM | PG minor version / locale / dependency version differs | pin versions; keep the Docker image and VM in lockstep |
 | isolation test hangs | a session left a txn open with no matching `commit`/`teardown` | every `BEGIN` needs a terminating step in the permutation |
 | recall test flaky | unfixed build seed | fix the build seed; recall must be deterministic to be a gate |
 | `column does not exist` (Shape B) | schema change not picked up | `docker compose down -v` (named volume copies schema once) |
