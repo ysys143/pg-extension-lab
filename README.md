@@ -4,9 +4,6 @@
 PostgreSQL extension — validating observable behavior in an isolated, reproducible
 environment, separately from the implementation.**
 
-> pg-extension-lab은 PostgreSQL 익스텐션의 동작을 격리된 환경에서 구현(코드)과 분리해
-> 테스트·벤치마크·튜닝하는 하네스입니다.
-
 A [Claude Code](https://docs.claude.com/en/docs/claude-code) skill, distilled from real
 C/PGXS, Rust/pgrx, GPU/CUDA, and extension+microservice projects. Use it to build an
 extension from scratch, **or** to design tuning experiments, write scenarios, and run
