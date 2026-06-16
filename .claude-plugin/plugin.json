@@ -1,9 +1,9 @@
 {
-  "name": "pg-skills",
+  "name": "pg-extension-lab",
   "version": "0.1.0",
-  "description": "Skills for building, testing, benchmarking, and tuning PostgreSQL extensions.",
-  "homepage": "https://github.com/ysys143/pg-skills",
-  "repository": "https://github.com/ysys143/pg-skills",
+  "description": "A harness for developing, testing, benchmarking, and tuning PostgreSQL extensions — validating behavior in an isolated, reproducible environment, separately from the implementation.",
+  "homepage": "https://github.com/ysys143/pg-extension-lab",
+  "repository": "https://github.com/ysys143/pg-extension-lab",
   "license": "MIT",
   "keywords": [
     "postgresql",

@@ -1,44 +1,54 @@
-# pg-skills
+# pg-extension-lab
 
-[Claude Code](https://docs.claude.com/en/docs/claude-code) **skills** for engineering
-PostgreSQL extensions — building, testing, benchmarking, and tuning them. Distilled from real
-C/PGXS, Rust/pgrx, GPU/CUDA, and extension+microservice projects.
+**pg-extension-lab is a harness for developing, testing, benchmarking, and tuning a
+PostgreSQL extension — validating observable behavior in an isolated, reproducible
+environment, separately from the implementation.**
 
-Packaged as a Claude Code **plugin marketplace** (`.claude-plugin/`) so it installs without
-manual symlinks, with each skill under [`skills/`](skills/).
+> pg-extension-lab은 PostgreSQL 익스텐션의 동작을 격리된 환경에서 구현(코드)과 분리해
+> 테스트·벤치마크·튜닝하는 하네스입니다.
 
-## Skills
+A [Claude Code](https://docs.claude.com/en/docs/claude-code) skill, distilled from real
+C/PGXS, Rust/pgrx, GPU/CUDA, and extension+microservice projects. Use it to build an
+extension from scratch, **or** to design tuning experiments, write scenarios, and run
+isolation/regression tests against an existing one. Packaged as a Claude Code **plugin
+marketplace** (`.claude-plugin/`) so it installs without manual symlinks.
 
-| Skill | What it does |
-|---|---|
-| [`pg-extension-lab`](skills/pg-extension-lab/SKILL.md) | A lab/workbench for PostgreSQL extensions: develop from scratch, **or** design tuning experiments, scenarios, and isolation/regression tests for an existing one. Three architecture shapes (in-process / microservice / out-of-process daemon) across testing, benchmarking, performance, architecture, and accelerator categories. |
+## What's inside
+
+The skill lives at [`skills/pg-extension-lab/`](skills/pg-extension-lab/SKILL.md): three
+architecture shapes (in-process / microservice / out-of-process daemon) across five reference
+categories — **testing** (C unit / `pg_regress` golden-file / `pg_isolation_regress`
+concurrency), **benchmarking** (matched-recall, trust labeling, accelerator-vs-CPU crossover,
+cost-per-query), **performance** (resource-vs-performance Pareto, governance), **architecture**
+(Rust/pgrx, async outbox workers, external-provider integration, security), and **accelerator**
+(GPU/CUDA specifics).
 
 ## Install
 
 ### As a Claude Code plugin (recommended)
 
 ```text
-/plugin marketplace add ysys143/pg-skills
-/plugin install pg-skills
+/plugin marketplace add ysys143/pg-extension-lab
+/plugin install pg-extension-lab
 ```
 
-Claude Code clones the repo, registers the bundled skills, and handles updates via the plugin
-manager. Skills auto-activate by their `description`; invoke one explicitly with
+Claude Code clones the repo, registers the bundled skill, and handles updates via the plugin
+manager. The skill auto-activates by its `description`; invoke it explicitly with
 `/pg-extension-lab`.
 
-### Manual (clone + symlink a single skill)
+### Manual (clone + symlink)
 
 ```bash
-git clone https://github.com/ysys143/pg-skills.git ~/src/pg-skills
-ln -s ~/src/pg-skills/skills/pg-extension-lab ~/.claude/skills/pg-extension-lab
+git clone https://github.com/ysys143/pg-extension-lab.git ~/src/pg-extension-lab
+ln -s ~/src/pg-extension-lab/skills/pg-extension-lab ~/.claude/skills/pg-extension-lab
 ```
 
 ## Layout
 
 ```
-pg-skills/
+pg-extension-lab/
   .claude-plugin/
-    marketplace.json     # marketplace manifest (this repo as a marketplace)
+    marketplace.json     # this repo as a Claude Code marketplace
     plugin.json          # plugin manifest; skills: ./skills/
   skills/
     pg-extension-lab/
@@ -48,11 +58,8 @@ pg-skills/
   LICENSE
 ```
 
-## Adding a skill
-
-Create `skills/<name>/SKILL.md` (with YAML frontmatter `name` + `description`), keep heavy
-detail in `skills/<name>/references/<category>/`, and add a row to the **Skills** table above.
-The plugin manifest's `"skills": "./skills/"` picks it up automatically.
+The `skills/` layout leaves room to add more skills later (`skills/<name>/SKILL.md`); the
+plugin manifest's `"skills": "./skills/"` picks them up automatically.
 
 ## License
 

@@ -1,8 +1,10 @@
 ---
 name: pg-extension-lab
 description: >-
-  Develop, test, benchmark, and performance-tune a PostgreSQL extension — or design tuning
-  experiments, scenarios, and isolation tests for an existing one. Targets pure C/PGXS or
+  pg-extension-lab is a harness for developing, testing, benchmarking, and performance-tuning a
+  PostgreSQL extension in an isolated, reproducible environment — validating observable behavior
+  separately from the implementation, or designing tuning experiments, scenarios, and isolation
+  tests for an existing one. Targets pure C/PGXS or
   Rust/pgrx extensions, optionally with an external microservice (Shape B) or a co-located daemon
   fronting a costly out-of-process resource like a GPU/accelerator, resident model, or JIT
   pool (Shape C). Covers the TDD test ladder (C unit / pg_regress golden-file /
@@ -16,12 +18,14 @@ description: >-
   in the skill body. Not for general web/mobile/Python TDD with no PostgreSQL extension layer.
 ---
 
-# pg-extension-lab — build, test, scenario, benchmark, tune a PostgreSQL extension
+# pg-extension-lab — a harness to build, test, scenario, benchmark, and tune a PostgreSQL extension
 
-A lab/workbench skill for PostgreSQL extensions, covering **three architecture shapes** and
-**five reference categories**. Use it not only to build an extension from scratch but to
-design tuning experiments, write scenarios, and run isolation/regression tests against an
-existing one. Identify your shape, then open the category that matches the request — each
+**pg-extension-lab is a harness for validating a PostgreSQL extension's observable behavior in
+an isolated, reproducible environment, separately from its implementation** — covering
+**three architecture shapes** and **five reference categories**. Use it not only to build an
+extension from scratch but to design tuning experiments, write scenarios, and run
+isolation/regression tests against an existing one. Identify your shape, then open the category
+that matches the request — each
 category has a `README.md` index that links to dense, single-topic detail files (progressive
 disclosure: this file → category README → detail file).
 

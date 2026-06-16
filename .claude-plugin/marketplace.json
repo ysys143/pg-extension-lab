@@ -1,18 +1,18 @@
 {
-  "name": "pg-skills",
+  "name": "pg-extension-lab",
   "owner": {
     "name": "Jaesol Shin",
     "email": "ysys143@gmail.com"
   },
   "metadata": {
-    "description": "Skills for engineering PostgreSQL extensions — build, test, benchmark, tune.",
+    "description": "A harness for testing, benchmarking, and tuning PostgreSQL extensions in isolation — behavior separated from implementation.",
     "version": "0.1.0"
   },
   "plugins": [
     {
-      "name": "pg-skills",
+      "name": "pg-extension-lab",
       "source": "./",
-      "description": "Build, test, benchmark, and tune PostgreSQL extensions (C/PGXS, Rust/pgrx, GPU, microservice).",
+      "description": "A harness for developing, testing, benchmarking, and tuning a PostgreSQL extension (C/PGXS, Rust/pgrx, GPU, microservice) — validating behavior in an isolated, reproducible environment, separately from the implementation.",
       "version": "0.1.0",
       "category": "database",
       "tags": [
