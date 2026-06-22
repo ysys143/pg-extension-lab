@@ -10,6 +10,14 @@ make installcheck              # pg_regress: golden-file SQL diff
 make installcheck-isolation   # pg_isolation_regress: concurrency interleavings
 ```
 
+> **pgrx variant.** With cargo-pgrx the same ladder maps to: pure-Rust `cargo test` (unit, no PG)
+> → `cargo pgrx test pgNN` (the regression layer — `#[pg_test]` assertions run in a real PG, each
+> in a rolled-back transaction) → isolation specs. The red→green move is **assertion-based, not
+> golden-file**: write a `#[pg_test]` asserting the SQL-visible behavior of a *not-yet-created*
+> object (RED), implement via `extension_sql!` (GREEN) — there is no `.out` to promote. Golden-file
+> diffs remain available via the `tests/pg_regress/` dir that `cargo pgrx new` scaffolds. Details:
+> `../architecture/pgrx-rust.md`.
+
 ---
 
 ## Contents

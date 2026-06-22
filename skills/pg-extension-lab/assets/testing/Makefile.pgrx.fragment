@@ -1,16 +1,27 @@
 # Copy these targets into a pgrx extension Makefile if useful.
-# Required edits: PG_VERSION and FEATURE flags.
+#
+# IMPORTANT: a pgrx crate selects exactly ONE Postgres major via a feature (pg13..pg18); they
+# are mutually exclusive, so `cargo test --all-features` does NOT compile a pgrx crate. Pick one
+# PG_VERSION, and run cargo-pgrx from the extension crate dir (use EXT_DIR in a workspace monorepo).
 
-PG_VERSION ?= 16
+PG_VERSION ?= 17
+EXT_DIR    ?= .
 
-.PHONY: pgrx-test pgrx-installcheck pgrx-schema
+.PHONY: unit pgrx-test pgrx-run pgrx-schema
 
+# Pure-Rust crates only (no pgrx) — fastest loop, no PG. e.g. an algorithm/tokenizer crate.
+# Replace with `cargo test -p <crate>` or `--workspace --exclude <pgrx-extension-crate>`.
+unit:
+	cargo test -p <pure-rust-crate>
+
+# Extension behavior in a real PG (the regression layer). Each #[pg_test] runs in a rolled-back txn.
 pgrx-test:
-	cargo test --all --all-features
+	cd $(EXT_DIR) && cargo pgrx test pg$(PG_VERSION)
 
-pgrx-installcheck:
-	cargo pgrx test pg$(PG_VERSION)
+# Interactive psql against the dev instance (manual checks); pipe SQL on stdin for one-shot.
+pgrx-run:
+	cd $(EXT_DIR) && cargo pgrx run pg$(PG_VERSION)
 
+# Inspect the generated SQL (auto #[pg_extern] functions + your extension_sql! blocks).
 pgrx-schema:
-	cargo pgrx schema > /tmp/pgrx-schema.sql
-
+	cd $(EXT_DIR) && cargo pgrx schema
