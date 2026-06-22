@@ -13,6 +13,7 @@ unit/regression layer).
 - [Do I even need a compiled extension? (ADR-002 checklist)](#do-i-even-need-a-compiled-extension-adr-002-checklist)
 - [The load-bearing discipline: SPI-then-network phase separation](#the-load-bearing-discipline-spi-then-network-phase-separation)
 - [`#[pg_extern]` attribute discipline](#pg_extern-attribute-discipline)
+- [Support functions with `internal` args (parser / index AM / operator)](#support-functions-with-internal-args-parser--index-am--operator)
 - [pgrx 0.18 SPI conventions](#pgrx-018-spi-conventions-the-ones-that-bite)
 - [Unit tests: minimum four per function](#unit-tests-minimum-four-per-function)
 - [Two reusable patterns surfaced by pgrx code](#two-reusable-patterns-surfaced-by-pgrx-code)
@@ -73,6 +74,35 @@ calls out — C or Rust.)
 
 ---
 
+## Support functions with `internal` args (parser / index AM / operator)
+
+Some PG support functions — text-search parser (`prsstart`/`gettoken`/`prsend`), GiST/GIN
+support, operator support — take/return the `internal` SQL type and are called by PG core, not
+from SQL. pgrx has no dedicated helper, but `#[pg_extern]` + `pgrx::Internal` covers them
+without hand-writing fcinfo/`PG_FUNCTION_INFO_V1` (pgrx still generates the finfo, `#[pg_guard]`,
+and SQL):
+
+- `fn f(arg: Internal, n: i32) -> Internal` generates `f(internal, integer) RETURNS internal`.
+- Pointer arg → bytes: `let p = arg.unwrap().unwrap().cast_mut_ptr::<u8>();` then `from_raw_parts`.
+  Persistent state across calls: `arg.get_mut::<State>()`.
+- Create state with **`Internal::new(state)`** — it palloc's in `CurrentMemoryContext` and
+  **drops on context delete**, so there is *no leak even on `ereport`/longjmp*. This is the
+  memory-safety answer; never return a Rust `Box`/reference PG would never free. Values you hand
+  back (e.g. token bytes via `*t`/`*tlen`) must live in that context-managed state — PG copies them.
+- Register the catalog object in `extension_sql!(r#"CREATE TEXT SEARCH PARSER …"#, requires = [f, …])`
+  so it is created after the functions.
+
+**Gotcha — the SQL return type must match what PG *validates*, not what's natural.** A TS
+parser's `gettoken` must be `RETURNS internal` (PG's own `CREATE TEXT SEARCH PARSER` doc example
+and `DefineTSParser` require it); returning `i32` from `#[pg_extern]` yields `RETURNS integer`
+and `DefineTSParser` rejects it. Carry the token-type int *inside* an Internal instead:
+`Internal::from(Some(pg_sys::Datum::from(lextype as usize)))` — PG's `DatumGetInt32` reads the
+datum. Reuse `pg_catalog.prsd_lextype` / `prsd_headline`, emit the standard type ids
+(2 = word, 12 = blank). Validate input is UTF-8 at the boundary → `ereport` on failure; let
+`#[pg_guard]` convert panics to `ereport` (never unwind across the ABI).
+
+---
+
 ## pgrx 0.18 SPI conventions (the ones that bite)
 
 - Use `value.into()` for SPI args, **not** `value.into_datum().into()`.
@@ -121,6 +151,7 @@ misconfiguration (rather than leaking a confusing internal error) is part of its
 | `cargo pgrx test` SIGKILL / OOM | Docker Desktop memory too low | give Docker ≥ 8 GB; retry warms the cache |
 | `CREATE EXTENSION IF NOT EXISTS` keeps the OLD version | `cargo pgrx install` copies files only; `IF NOT EXISTS` is a no-op on an existing extension | always `DROP EXTENSION ... CASCADE` then `CREATE EXTENSION` |
 | `schema X is not a member of extension` | the schema was created outside the extension, or a leftover from a prior run | `DROP EXTENSION ... CASCADE` (drops the owned schema), then recreate |
+| `[profile.*]` ignored / cargo warns (pgrx needs `panic = "unwind"`) | profile tables in a *workspace member* are ignored — only the workspace **root** applies | move `[profile.dev]`/`[profile.release]` to the root `Cargo.toml`. Note: `cargo pgrx new` inside a workspace writes them into the new member crate — relocate them and add the crate to `members` |
 
 The DROP-then-CREATE upgrade rule is the pgrx equivalent of the C-extension
 "reinstall the `.so` and reconnect" — the running backend caches the loaded library and the
