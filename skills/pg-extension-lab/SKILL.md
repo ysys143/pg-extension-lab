@@ -128,6 +128,11 @@ Benchmarking an ANN/index path is where most rigor is won or lost:
 6. **Crossover, not a ratio.** For an accelerated path (fixed overhead, better scaling), find
    the N where it beats the baseline by root-finding; report the losing region too; frame
    cost-per-query, not just latency.
+7. **Machine gates before and after.** Run `assets/validation/check_methodology.py` before
+   spending cells (rejects unfixed seeds, unbounded grids, unpruned frontiers) and
+   `assets/validation/lint_report.py` before review (rejects missing run_id/reproduce command,
+   missing trust labels, `min_ms` headlines). Rules 1–6 are enforced there where mechanically
+   checkable; prose states the why, the gate rejects the violation.
 
 Methodology + the crossover/cost companion + copy-ready benchmark harnesses:
 **[`references/benchmarking/README.md`](references/benchmarking/README.md)**.
@@ -231,6 +236,14 @@ another repository.
 - **Hypothesis → validation → evidence → report is the unit of work.** Start with a falsifiable
   hypothesis, name the acceptance threshold, run the smallest isolated check that can disprove
   it, commit the raw evidence, then write the report from the artifact rather than memory.
+- **The ledger, not memory, is the campaign state.** A multi-session experiment keeps an
+  experiment ledger (hypothesis status, cells spent, environment changes) committed next to
+  its configs; every session — human or agent — reads it first and writes every update back.
+  ([`assets/operations/experiment-ledger-template.md`](assets/operations/experiment-ledger-template.md))
+- **Enforce principles by machine where checkable.** Every mechanically checkable principle on
+  this list has a rule ID in [`assets/validation/`](assets/validation/README.md); a violated
+  gate fails before a run is spent or a report is reviewed. Promote new principles into rules
+  instead of adding prose.
 - **Do not trust docs or APIs alone.** Read docs first to find the intended contract, then verify
   against source code, catalog shape, `EXPLAIN`, tests, or a minimal execution. If docs and code
   disagree, record the disagreement and trust the executable evidence.

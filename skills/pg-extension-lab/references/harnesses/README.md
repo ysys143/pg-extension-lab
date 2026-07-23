@@ -11,11 +11,17 @@ protocol, not to vendor every result file from the reference projects.
 3. Edit only the declared configuration seams first:
    extension name, schema/table names, vector/filter columns, index DDL, search GUCs,
    service-boundary contracts, and dataset paths.
-4. Run `--validate-config` or `--dry-run` before touching a live database/device.
+4. Run `--validate-config` or `--dry-run` before touching a live database/device, and
+   `validation/check_methodology.py` before spending any benchmark cells — structural checks
+   ask "can it run"; the methodology gate asks "should it run".
 5. Write a hypothesis and parameter-space plan before broad runs; use one-axis scouts and
    Pareto/frontier pruning before any multi-axis run.
 6. Commit the config, result JSON/CSV, and generated report together. Never commit a report
-   without the exact command and environment that produced it.
+   without the exact command and environment that produced it; run `validation/lint_report.py`
+   on every `REPORT_*.md` before review.
+7. For a campaign that spans sessions, keep an experiment ledger
+   (`assets/operations/experiment-ledger-template.md`) next to the configs, read it first
+   every session, and commit every update — the ledger, not memory, is the campaign state.
 
 ## Asset index
 
@@ -24,7 +30,8 @@ protocol, not to vendor every result file from the reference projects.
 | `assets/testing/` | repo root or `test-harness/` | PGXS/pgrx test ladder, ACL audit, CI skeleton | `make installcheck` after editing `EXTENSION` |
 | `assets/benchmark-filtered-ann/` | `bench/filtered-ann/` | filtered vector/index benchmarks with pages-per-query | `python run_bench.py --validate-config --config bench_config.example.toml` |
 | `assets/benchmark-accelerator/` | `bench/accelerator/` | CPU/GPU or accelerator crossover, exact ground truth, recall scoring | `python gt.py --help` |
-| `assets/operations/` | `docs/ops/` | release checklist, capacity plan, replica/bootstrap runbooks | copy then fill bracketed fields |
+| `assets/validation/` | `bench/validation/` | deterministic methodology gates: plan admissibility before runs, report honesty before review | `python check_methodology.py --config ... --plan ...` |
+| `assets/operations/` | `docs/ops/` | release checklist, capacity plan, replica/bootstrap runbooks, experiment ledger | copy then fill bracketed fields |
 
 ## Adaptation rule
 
