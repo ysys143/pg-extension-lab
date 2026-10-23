@@ -36,6 +36,7 @@ class PostgresSqlTarget:
     """Config-driven PostgreSQL target.
 
     The scenario contract is fixed, but all extension-specific SQL lives in the config.
+    query_sql must filter with `{filter_column} < %s` (rows pass below filter_value).
     Default query parameters: filter_value, query_vector, k.
     Default insert parameters: id, query_vector, filter_value.
     """
@@ -44,6 +45,7 @@ class PostgresSqlTarget:
 
     def __init__(self, config: dict[str, Any]):
         self.cfg = config["postgres_sql"]
+        self.has_search_knob = bool(self.cfg.get("set_search_knob_sql"))
         self.context = dict(self.cfg.get("context", {}))
         self.context.setdefault("dims", config["dataset"]["dims"])
         self.conn = psycopg.connect(self.cfg["dsn"])

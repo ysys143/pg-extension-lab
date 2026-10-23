@@ -1,3 +1,6 @@
 # Claude Code / orchestration session state
 .omc/
 .cwf/
+
+# Python bytecode from running the harnesses
+__pycache__/

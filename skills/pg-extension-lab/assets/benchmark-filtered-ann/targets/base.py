@@ -12,7 +12,16 @@ class QueryResult:
 
 
 class Target(Protocol):
+    """Backend adapter contract.
+
+    Filter semantics: a row passes when its filter column is below `filter_value`
+    (`fixtures.synthetic.passes`). `query_filtered` returns the ids of the k nearest passing rows.
+    Set `has_search_knob = False` when `set_search_knob` is a no-op; scenarios then run once
+    instead of repeating identical cells for every knob value.
+    """
+
     name: str
+    has_search_knob: bool
 
     def setup(self) -> None: ...
 
@@ -29,4 +38,3 @@ class Target(Protocol):
     def teardown(self) -> None: ...
 
     def close(self) -> None: ...
-

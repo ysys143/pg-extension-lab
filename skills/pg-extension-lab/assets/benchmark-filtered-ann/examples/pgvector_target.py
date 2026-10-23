@@ -15,6 +15,7 @@ class PgvectorExampleTarget:
 
     def __init__(self, config: dict[str, Any]):
         self.cfg = config["pgvector_example"]
+        self.has_search_knob = bool(self.cfg.get("search_guc"))
         self.conn = psycopg.connect(self.cfg["dsn"])
         self.conn.autocommit = True
 
@@ -57,7 +58,7 @@ class PgvectorExampleTarget:
         return (
             prefix
             + f"SELECT {self.cfg['id_column']} FROM {self.cfg['table']} "
-            + f"WHERE {self.cfg['filter_column']} = %s "
+            + f"WHERE {self.cfg['filter_column']} < %s "
             + f"ORDER BY {self.cfg['vector_column']} {self.cfg['distance_operator']} %s "
             + "LIMIT %s"
         )

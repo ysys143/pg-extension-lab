@@ -6,7 +6,10 @@ from .base import QueryResult
 
 
 class MyExtensionTarget:
+    """Filter semantics: rows pass when filter column < filter_value (see targets/base.py)."""
+
     name = "my-extension"
+    has_search_knob = True  # False if set_search_knob does nothing
 
     def __init__(self, config: dict[str, Any]):
         self.config = config
