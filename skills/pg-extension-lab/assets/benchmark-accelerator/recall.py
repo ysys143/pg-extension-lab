@@ -34,6 +34,9 @@ def main() -> int:
     parser.add_argument("--k", type=int, required=True)
     args = parser.parse_args()
     gt = read_ibin(args.gt)
+    if gt and args.k > len(gt[0]):
+        print(f"--k {args.k} exceeds the {len(gt[0])} neighbors per query in {args.gt}", file=sys.stderr)
+        return 2
     if args.results.endswith(".ibin"):
         actual = read_ibin(args.results)
     else:

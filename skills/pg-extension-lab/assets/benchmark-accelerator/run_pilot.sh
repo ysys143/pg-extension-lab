@@ -16,7 +16,13 @@ QUERIES="${QUERIES:-100}"
 if "$PY" -c 'import faiss, numpy' 2>/dev/null; then
   "$PY" gt_faiss.py --data data.fbin --queries queries.fbin --k "$K" --out gt_faiss.ibin
   echo "ground-truth independence (gt_faiss.py vs gt.py):"
-  "$PY" recall.py --gt gt.ibin --results gt_faiss.ibin --k "$K"
+  agreement="$("$PY" recall.py --gt gt.ibin --results gt_faiss.ibin --k "$K")"
+  echo "$agreement"
+  # The two oracles must agree before either one grades a backend.
+  if [ "$agreement" != "recall@${K}=1.000000" ]; then
+    echo "FAIL: the exact ground-truth implementations disagree" >&2
+    exit 1
+  fi
 else
   echo "SKIP ground-truth independence check: needs numpy and faiss (pip install faiss-cpu)"
 fi

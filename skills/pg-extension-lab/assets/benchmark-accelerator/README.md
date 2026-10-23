@@ -15,8 +15,9 @@ ground truth, recall scoring, and protocol schemas.
 The pilot generates a dataset and a held-out query set (separate seed), computes exact ground
 truth with `gt.py`, and — when numpy and faiss are installed — recomputes it with
 `gt_faiss.py` and scores one against the other. That is the ground-truth independence check:
-two independent exact implementations must agree before either one grades a backend. Without
-faiss it prints `SKIP` instead of a number.
+two independent exact implementations must agree before either one grades a backend, so the
+pilot exits 1 if their agreement is below recall 1.0. Without faiss it prints `SKIP` instead of
+a number.
 
 Step by step:
 
