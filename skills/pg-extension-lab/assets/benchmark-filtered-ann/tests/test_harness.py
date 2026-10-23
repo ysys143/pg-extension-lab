@@ -285,6 +285,20 @@ class ExplainTest(unittest.TestCase):
         self.assertEqual(summary["plan_summary"], "Limit > Sort > Seq Scan")
         self.assertEqual((summary["pages_hit"], summary["pages_read"], summary["pages_total"]), (4, 1, 5))
 
+    def test_buffers_come_from_the_root_when_an_initplan_overlaps(self):
+        # Shape and counts from a warm pgvector EXPLAIN of a query with an InitPlan: the
+        # InitPlan's 806 pages are already inside the Sort's 3473, and the root covers both.
+        plan = [{"Plan": {
+            "Node Type": "Limit", "Shared Hit Blocks": 3473,
+            "Plans": [
+                {"Node Type": "Aggregate", "Parent Relationship": "InitPlan", "Shared Hit Blocks": 806,
+                 "Plans": [{"Node Type": "Seq Scan", "Shared Hit Blocks": 806}]},
+                {"Node Type": "Sort", "Shared Hit Blocks": 3473,
+                 "Plans": [{"Node Type": "Seq Scan", "Shared Hit Blocks": 3473}]},
+            ],
+        }}]
+        self.assertEqual(summarize_explain(plan)["pages_total"], 3473)
+
 
 class ParetoTest(unittest.TestCase):
     def frontier_sizes(self, rows):
@@ -432,6 +446,13 @@ class ReportTest(unittest.TestCase):
         text = self.render([report_row()], dataset=dataset)
         self.assertIn("- scale: 1000 rows, 16 dims, 10 queries per condition, fixtures correlated, uncorrelated.", text)
         self.assertIn("not performance or latency distributions at scale", text)
+
+    def test_large_runs_carry_no_smoke_caveat(self):
+        dataset = {"name": "s", "rows": 10_000_000, "dims": 1024, "queries_per_condition": 1000,
+                   "fixtures": ["correlated"]}
+        text = self.render([report_row()], dataset=dataset)
+        self.assertIn("- scale: 10000000 rows, 1024 dims, 1000 queries per condition, fixtures correlated.", text)
+        self.assertNotIn("Smoke scale", text)
 
     def test_exact_path_means_a_sort_over_unlimited_input(self):
         report = importlib.import_module("report")

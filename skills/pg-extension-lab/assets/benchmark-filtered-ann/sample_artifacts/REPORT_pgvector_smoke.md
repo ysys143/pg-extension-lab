@@ -4,7 +4,7 @@
 - profile: filtered-ann
 - command: `python run_bench.py --config bench_config.pgvector-example.toml --output sample_artifacts/results_pgvector_smoke.json`
 - pgvector_example: extension_version 0.8.7, postgres_version 17.11 (Debian 17.11-1.pgdg12+2)
-- scale: 1000 rows, 16 dims, 10 queries per condition, fixtures correlated, uncorrelated. At this size the report shows where recall fails and recovers, not performance or latency distributions at scale.
+- scale: 1000 rows, 16 dims, 10 queries per condition, fixtures correlated, uncorrelated. Smoke scale: the report shows where recall fails and recovers, not performance or latency distributions at scale.
 - recall threshold for the matched-recall operating point: 0.94
 
 | metric | trust | why |
@@ -12,14 +12,14 @@
 | recall@k vs exact filtered ground truth | SOLID | deterministic oracle, host-independent |
 | realized selectivity (fixture count) | SOLID | counted from the fixture, not timed |
 | qps, p95 ms | INDICATIVE | shared-host timing; qps is single-client serial over target calls only |
-| pages/query | INDICATIVE | from a separate EXPLAIN (ANALYZE, BUFFERS) re-execution, not the timed call |
+| buffer accesses/query (shared hit + read) | INDICATIVE | from a separate EXPLAIN (ANALYZE, BUFFERS) re-execution, not the timed call; a page touched twice counts twice |
 
 `plan` is the EXPLAIN node path per cell, followed by the plan mode the harness requested
 (`planner` lets PostgreSQL choose; `force_index` asks for the index). Check it before reading
 recall as index quality: an exact path (Seq Scan or Bitmap Heap Scan, then Sort) scores 1.0 by
 construction.
 
-| target | fixture | scenario | sel | pass rate | k | search | recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) | pages/query (INDICATIVE) | plan |
+| target | fixture | scenario | sel | pass rate | k | search | recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) | buffer accesses/query (INDICATIVE) | plan |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 1.000 | 2314.95 | 0.51 | 14.00 | Limit > Sort > Seq Scan (planner) |
 | pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 40 | 1.000 | 1740.08 | 0.61 | 14.00 | Limit > Sort > Seq Scan (planner) |

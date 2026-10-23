@@ -37,7 +37,8 @@ in bucket assignment, so their gap is the correlation effect.
 - A: left to itself, the planner chose `Seq Scan > Sort` at that size, so A's 1.0 is the exact
   path.
 - B–D: with the HNSW index forced, B's 1% post-filter recall stays at or below 0.11 on both
-  fixtures. At 1% the failure comes from selectivity, not correlation.
+  fixtures. At this size 1% is exactly k = 10 rows, so recall is capped near ef/1,000 whatever the
+  geometry; the 1% cell does not separate selectivity from correlation.
 - C separates the fixtures: the correlated one never reaches the 0.94 recall threshold (best 0.31
   at `ef` 160 for 10%), while the uncorrelated one crosses it at 10% with recall 1.000.
 - D's correlated far queries get recall 0.0 at every `ef` from 20 to 160, while the
