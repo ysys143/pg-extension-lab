@@ -66,7 +66,7 @@ python run_bench.py --config bench_config.pgvector-example.toml --scenario a
 | Target | Role |
 |---|---|
 | `targets/prefilter_exact.py` | Exact filtered top-k. The ground-truth oracle, and a baseline with recall 1.0 by construction. No search knob. |
-| `targets/postfilter_topn.py` | Deterministic model of post-filtering with a candidate budget (`search_value` nearest rows, then filter). Not an ANN index; it lets the scenarios show real recall curves without a database. |
+| `targets/postfilter_topn.py` | Deterministic model of post-filtering with a candidate budget (`search_value` nearest rows, then filter). Not an ANN index; it lets the scenarios show real recall curves without a database. Its recall is meaningful, its timing is not: it ranks every row whatever the budget, so qps stays flat. |
 | `targets/postgres_sql.py` | SQL templates from `[postgres_sql]`. Has a knob only when `set_search_knob_sql` is set. |
 | `examples/pgvector_target.py` | pgvector HNSW example; knob = `search_guc`. |
 
