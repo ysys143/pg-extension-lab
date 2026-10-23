@@ -60,6 +60,13 @@ def main() -> int:
     for name, info in meta.get("targets", {}).items():
         if info:
             print(f"- {name}: " + ", ".join(f"{key} {value}" for key, value in sorted(info.items())))
+    scale = meta.get("dataset")
+    if scale:
+        print(
+            f"- scale: {scale['rows']} rows, {scale['dims']} dims, {scale['queries_per_condition']} queries per "
+            f"condition, fixtures {', '.join(scale['fixtures'])}. At this size the report shows where recall fails "
+            "and recovers, not performance or latency distributions at scale."
+        )
     print(f"- recall threshold for the matched-recall operating point: {meta.get('recall_threshold')}\n")
     print(TRUST_TABLE)
     print(

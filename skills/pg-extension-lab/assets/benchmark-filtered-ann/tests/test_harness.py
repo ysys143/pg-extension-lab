@@ -398,11 +398,11 @@ def report_row(**fields):
 
 
 class ReportTest(unittest.TestCase):
-    def render(self, rows):
+    def render(self, rows, **meta):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "r.json"
             path.write_text(json.dumps({"meta": {"run_id": "x", "command": "python run_bench.py",
-                                                 "profile": "filtered-ann", "recall_threshold": 0.94},
+                                                 "profile": "filtered-ann", "recall_threshold": 0.94, **meta},
                                         "results": rows}))
             proc = subprocess.run([sys.executable, "-B", "report.py", str(path)], cwd=HARNESS,
                                   capture_output=True, text=True, check=True)
@@ -425,6 +425,13 @@ class ReportTest(unittest.TestCase):
         self.assertIn("| no knob |", self.recovery_line(text, "exact"))
         self.assertIn("| pass rate |", text)
         self.assertIn("| recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) |", text)
+
+    def test_report_states_its_scale(self):
+        dataset = {"name": "s", "rows": 1000, "dims": 16, "queries_per_condition": 10,
+                   "fixtures": ["correlated", "uncorrelated"]}
+        text = self.render([report_row()], dataset=dataset)
+        self.assertIn("- scale: 1000 rows, 16 dims, 10 queries per condition, fixtures correlated, uncorrelated.", text)
+        self.assertIn("not performance or latency distributions at scale", text)
 
     def test_exact_path_means_a_sort_over_unlimited_input(self):
         report = importlib.import_module("report")
@@ -485,6 +492,8 @@ class EndToEndTest(unittest.TestCase):
             self.assertIn(row["plan_mode"], {"planner", "force_index"})
         self.assertEqual(artifact["meta"]["profile"], "filtered-ann")
         self.assertEqual(set(artifact["meta"]["targets"]), {"prefilter_exact", "postfilter_topn"})
+        scale = artifact["meta"]["dataset"]
+        self.assertEqual((scale["rows"], scale["dims"], scale["queries_per_condition"]), (200, 4, 3))
 
 
 if __name__ == "__main__":
