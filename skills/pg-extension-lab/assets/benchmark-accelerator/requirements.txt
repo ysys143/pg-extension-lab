@@ -1,2 +1,3 @@
-# No required dependencies for the smoke harness.
-# Add backend-specific packages such as numpy, faiss-cpu, or GPU SDK bindings in the target repo.
+# gen_dataset.py, gt.py and recall.py need only the standard library.
+# gt_faiss.py (the ground-truth independence check) needs numpy and faiss-cpu (or faiss-gpu).
+# Add backend-specific packages and GPU SDK bindings in the target repo.

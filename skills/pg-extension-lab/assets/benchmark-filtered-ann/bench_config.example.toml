@@ -2,14 +2,27 @@
 seed = 42
 k = 10
 queries = 10
+# Default knob sweep for targets with a search knob; a target's own section
+# ([<target>] search_values) overrides it. 1000 = dataset.rows: the full-candidate endpoint.
+search_values = [20, 80, 320, 1000]
+# Matched-recall operating point: scenario C reports the lowest knob reaching it.
+recall_threshold = 0.94
+# Untimed passes per cell before the timed window.
+warmup_passes = 1
 output = "results_smoke.json"
 
 [dataset]
 name = "synthetic-smoke"
 rows = 1000
 dims = 16
+# A row passes when bucket < round(selectivity * 100). Fixtures are stratified, so the realized
+# pass rate equals the configured selectivity to within one row (recorded as pass_rate).
 selectivities = [0.01, 0.05, 0.10]
-correlated = true
+fixtures = ["correlated", "uncorrelated"]
+
+[methodology]
+profile = "filtered-ann"
+adversarial_axis = "selectivity x filter/geometry correlation"
 
 [postgres_sql]
 dsn = "postgresql://postgres:postgres@localhost:5432/postgres"
@@ -20,16 +33,20 @@ setup_sql = [
 insert_sql = "INSERT INTO {table} ({id_column}, {vector_column}, {filter_column}) VALUES (%s, %s, %s)"
 insert_params = ["id", "query_vector", "filter_value"]
 after_load_sql = ["ANALYZE {table}"]
+# Template only: replace ORDER BY with your extension's distance ordering (for example
+# `{vector_column} <-> %s`) and add "query_vector" to query_params at the matching position.
 query_sql = """
 SELECT {id_column}
 FROM {table}
-WHERE {filter_column} = %s
+WHERE {filter_column} < %s
 ORDER BY {id_column}
 LIMIT %s
 """
 query_params = ["filter_value", "k"]
+# Without set_search_knob_sql the target has no knob and each cell runs once. SET cannot take
+# a bind parameter under psycopg 3, so use set_config():
+# set_search_knob_sql = "SELECT set_config('my_extension.ef_search', %s::text, false)"
 teardown_sql = ["DROP TABLE IF EXISTS {table}"]
-search_values = [20, 40, 80]
 
 [postgres_sql.context]
 table = "bench_items"
@@ -43,4 +60,8 @@ enabled = false
 
 [targets.prefilter_exact]
 module = "targets.prefilter_exact"
+enabled = true
+
+[targets.postfilter_topn]
+module = "targets.postfilter_topn"
 enabled = true

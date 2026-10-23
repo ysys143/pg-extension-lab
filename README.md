@@ -22,7 +22,9 @@ tell a different story.
 This skill turns those hard lessons into reusable working material:
 
 - copy-ready PGXS/pgrx test ladders, isolation specs, and CI fragments;
-- filtered ANN and accelerator benchmark harnesses with bounded parameter-space planning;
+- a generic benchmark methodology with two worked cases — a filtered ANN index and an
+  accelerator-vs-CPU crossover — each with a copy-ready harness, bounded parameter-space
+  planning, and machine gates;
 - Pareto/frontier reporting that explains where an option fits, not just which number won;
 - hypothesis, evidence, and report templates that keep claims tied to raw artifacts;
 - service-boundary contracts that separately verify API shape, fixture meaning, and effective
@@ -36,8 +38,9 @@ fake.
 The skill lives at [`skills/pg-extension-lab/`](skills/pg-extension-lab/SKILL.md): three
 architecture shapes (in-process / microservice / out-of-process daemon) across five reference
 categories — **testing** (C unit / `pg_regress` golden-file / `pg_isolation_regress`
-concurrency), **benchmarking** (matched-recall, trust labeling, accelerator-vs-CPU crossover,
-cost-per-query), **performance** (resource-vs-performance Pareto, governance), **architecture**
+concurrency), **benchmarking** (adversarial fixtures, matched quality, per-metric trust
+labeling, accelerator-vs-CPU crossover, cost-per-query; filtered ANN as a worked case),
+**performance** (resource-vs-performance Pareto, governance), **architecture**
 (Rust/pgrx, async outbox workers, service-boundary contracts, security), and **accelerator**
 (GPU/CUDA specifics).
 

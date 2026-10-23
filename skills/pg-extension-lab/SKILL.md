@@ -61,8 +61,9 @@ vs restart the daemon + reconcile orphaned artifacts). Shapes compose.
 The one law that spans every category: **fast, high-quality feedback comes from isolated
 tests/benchmarks and disciplined versioned artifacts.** Measure before you change, label what
 you measured by trust, and keep the evidence. Red before green. Docs guide the search; code
-and execution decide whether the docs are true. Config-Pareto before code. Recall
-(deterministic) is SOLID; absolute latency on a shared host is INDICATIVE.
+and execution decide whether the docs are true. Config-Pareto before code. Quality scored
+against a deterministic oracle (recall, for an ANN index) is SOLID; absolute latency on a shared
+host is INDICATIVE.
 
 ## When to use (detailed triggers)
 
@@ -112,29 +113,38 @@ test assets:
 
 ## Benchmarking (summary)
 
-Benchmarking an ANN/index path is where most rigor is won or lost:
+Benchmarking an extension path is where most rigor is won or lost. The rules are generic; the
+parentheses show the filtered-ANN worked case, which is an example, not the template every
+benchmark must copy:
 
-1. **Adversarial fixture.** A *correlated* filter (key derived from the dominant embedding
-   block → passing set is a cluster *off* the query→nearest path) is the worst case and the
-   only honest test. Record measured pass rates.
-2. **Exact ground truth.** Brute-force top-k over the *passing* rows, per (query, selectivity).
-3. **Matched recall, NOT matched ef.** Compare engines at the lowest ef each needs to reach
-   recall ≥ threshold; compare frontiers, not a shared ef.
+1. **Adversarial fixture.** Name the input that should break the fast path, test it first, and
+   record the realized condition next to the configured one. (Filtered ANN: a *correlated*
+   filter — key derived from the dominant embedding block, so the passing set is a cluster
+   *off* the query→nearest path — with measured pass rates.)
+2. **Exact oracle.** Score quality against a deterministic reference computed outside the timed
+   window. (Filtered ANN: brute-force top-k over the *passing* rows, per query × selectivity.)
+3. **Matched quality, NOT matched knobs.** Compare systems at the cheapest setting each needs to
+   reach a predeclared threshold; compare frontiers, not a shared knob value. (Filtered ANN:
+   lowest ef reaching recall ≥ 0.94.)
 4. **Bounded parameter space.** First sweep one axis at a time to find active ranges, then
    run fractional/frontier cells only. Do not run the full Cartesian product unless the space is
    tiny and justified.
-5. **Trust labeling.** Recall is deterministic → **SOLID** (the headline); absolute
-   latency/throughput on a shared host are **INDICATIVE**. `min_ms` is never a headline.
+5. **Trust labeling, per metric.** Oracle-scored quality is deterministic → **SOLID** (the
+   headline); absolute latency/throughput on a shared host are **INDICATIVE**. Label each
+   metric, not each row. `min_ms` is never a headline.
 6. **Crossover, not a ratio.** For an accelerated path (fixed overhead, better scaling), find
    the N where it beats the baseline by root-finding; report the losing region too; frame
    cost-per-query, not just latency.
 7. **Machine gates before and after.** Run `assets/validation/check_methodology.py` before
    spending cells (rejects unfixed seeds, unbounded grids, unpruned frontiers) and
    `assets/validation/lint_report.py` before review (rejects missing run_id/reproduce command,
-   missing trust labels, `min_ms` headlines). Rules 1–6 are enforced there where mechanically
-   checkable; prose states the why, the gate rejects the violation.
+   timing figures without INDICATIVE labels, `min_ms` headlines). Generic rules apply to every
+   benchmark; a case's rules turn on only when its config declares `[methodology] profile`
+   (e.g. `filtered-ann` adds selectivity and measured-pass-rate checks). Rules 1–6 are enforced
+   there where mechanically checkable; prose states the why, the gate rejects the violation.
 
-Methodology + the crossover/cost companion + copy-ready benchmark harnesses:
+Generic methodology, the two worked cases (filtered ANN, accelerator crossover), and copy-ready
+benchmark harnesses:
 **[`references/benchmarking/README.md`](references/benchmarking/README.md)**.
 
 ---

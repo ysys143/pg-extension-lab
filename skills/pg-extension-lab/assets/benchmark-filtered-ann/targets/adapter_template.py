@@ -6,10 +6,15 @@ from .base import QueryResult
 
 
 class MyExtensionTarget:
+    """Filter semantics: rows pass when filter column < filter_value (see targets/base.py)."""
+
     name = "my-extension"
+    has_search_knob = True  # False if set_search_knob does nothing
 
     def __init__(self, config: dict[str, Any]):
         self.config = config
+        # With psycopg 3, connect here and set `self.conn.prepare_threshold = None` so every
+        # timed query is planned like its EXPLAIN (see targets/base.py).
 
     def setup(self) -> None:
         raise NotImplementedError

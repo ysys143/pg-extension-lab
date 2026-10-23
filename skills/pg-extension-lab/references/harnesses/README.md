@@ -28,9 +28,9 @@ protocol, not to vendor every result file from the reference projects.
 | Asset | Copy to | Use for | First command |
 |---|---|---|---|
 | `assets/testing/` | repo root or `test-harness/` | PGXS/pgrx test ladder, ACL audit, CI skeleton | `make installcheck` after editing `EXTENSION` |
-| `assets/benchmark-filtered-ann/` | `bench/filtered-ann/` | filtered vector/index benchmarks with pages-per-query | `python run_bench.py --validate-config --config bench_config.example.toml` |
-| `assets/benchmark-accelerator/` | `bench/accelerator/` | CPU/GPU or accelerator crossover, exact ground truth, recall scoring | `python gt.py --help` |
-| `assets/validation/` | `bench/validation/` | deterministic methodology gates: plan admissibility before runs, report honesty before review | `python check_methodology.py --config ... --plan ...` |
+| `assets/benchmark-filtered-ann/` | `bench/filtered-ann/` | worked case: filtered vector/index benchmarks (selectivity × correlation, measured pass rates, pages-per-query); adapt the target adapters, keep the scenarios | `python run_bench.py --validate-config --config bench_config.example.toml` |
+| `assets/benchmark-accelerator/` | `bench/accelerator/` | worked case: CPU/GPU or accelerator crossover, exact ground truth with an independence check, recall scoring | `./run_pilot.sh` |
+| `assets/validation/` | `bench/validation/` | deterministic methodology gates: generic rules for every benchmark, case rules behind `[methodology] profile`; plan admissibility before runs, report honesty before review | `python check_methodology.py --config ... --plan ...` |
 | `assets/operations/` | `docs/ops/` | release checklist, capacity plan, replica/bootstrap runbooks, experiment ledger | copy then fill bracketed fields |
 
 ## Adaptation rule

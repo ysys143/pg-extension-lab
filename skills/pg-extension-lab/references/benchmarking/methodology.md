@@ -1,69 +1,81 @@
-# Benchmark methodology — fixtures, ground truth, trust labeling
+# Benchmark methodology — generic principles
 
-Hard-won discipline from benchmarking a filtered index against both in-PostgreSQL and
-external-engine baselines at 100K / 1M / 10M. The headline lesson: **the deterministic recall comparison is
-the durable result; absolute latency/throughput on a shared host are not.** Build the
-benchmark so the trustworthy part survives even when the host is noisy.
+Principles for benchmarking any extension path: an index access method, a planner hook, a SQL
+function backed by a service, an outbox worker, an accelerated path. Each principle is stated
+without assuming a particular metric. The worked cases show what a principle becomes in practice.
 
-> For comparing an *accelerated* path against a baseline (GPU vs CPU, crossover, cost-per-query,
-> batch-vs-latency, honest accelerator reporting), see **`crossover-and-cost.md`**.
+| Worked case | Where | Adversarial axis | Oracle | Quality metric |
+|---|---|---|---|---|
+| Filtered ANN index | [`filtered-ann-case.md`](filtered-ann-case.md), harness `assets/benchmark-filtered-ann/` | selectivity × filter/geometry correlation | exact top-k over passing rows | recall@k |
+| Accelerator vs CPU | [`crossover-and-cost.md`](crossover-and-cost.md), harness `assets/benchmark-accelerator/` | N (fixed overhead vs better scaling) | independent exact ground truth | recall@k, crossover N |
+
+> Generalize from the principles, not from a case's axes or numbers. Selectivity is a
+> first-class axis *for filtered ANN*; an outbox worker's might be burst size and crash timing.
 
 ## Contents
 
-- [1. Fixture design — adversarial, not friendly](#1-fixture-design--adversarial-not-friendly)
-- [2. Exact ground truth](#2-exact-ground-truth)
-- [3. Operating point — matched recall, NOT matched ef](#3-operating-point--matched-recall-not-matched-ef)
+- [1. Adversarial fixture — the input that breaks the fast path](#1-adversarial-fixture--the-input-that-breaks-the-fast-path)
+- [2. Exact oracle](#2-exact-oracle)
+- [3. Operating point — matched quality, NOT matched knobs](#3-operating-point--matched-quality-not-matched-knobs)
 - [4. Parameter space — bounded exploration, not Cartesian explosion](#4-parameter-space--bounded-exploration-not-cartesian-explosion)
 - [5. Metrics and trust labeling (incl. the min_ms anti-pattern)](#5-metrics-and-trust-labeling)
-- [6. Competitor fairness](#6-competitor-fairness)
-- [7. Throughput — transport-bound; read shape, not ceiling](#7-throughput--transport-bound-read-shape-not-ceiling)
+- [6. Fairness — equalized conditions, not identical knobs](#6-fairness--equalized-conditions-not-identical-knobs)
+- [7. Timing windows and throughput](#7-timing-windows-and-throughput)
 - [8. Caveats template](#8-caveats-template-paste-into-every-report)
-- [Harness shape](#harness-shape-reference)
+- [Harness shape](#harness-shape)
 
 ---
 
-## 1. Fixture design — adversarial, not friendly
+## 1. Adversarial fixture — the input that breaks the fast path
 
 A benchmark is only as honest as its hardest case.
 
-- **Correlated filter.** Derive the filter key from the data's own geometry, so the passing
-  set is a *spatial cluster off the query→nearest path*. Concretely: `bucket = argmax block
-  of the embedding`, filter `bucket < sel`. This is the worst case for filtered HNSW —
-  greedy descent toward the query meets mostly *failing* rows, and the true top-k passing
-  rows sit at a large distance-rank. A **random** filter is easy and hides the failure that
-  matters. Always test the correlated case; report the random case separately if at all.
-- **Record measured pass rates.** e.g. `<1%`=0.97%, `<5%`=4.83%, `<10%`=9.66%. The fixture
-  must be auditable — a reader has to see that "sel 1%" really passes ~1%.
-- **Real embeddings.** Use a real corpus (e.g. Cohere wikipedia 1024-dim, unit-norm,
-  cosine) at multiple N, with a fixed held-out query set. Synthetic gaussians understate the
-  clustering that makes filtered ANN hard.
-- **Byte-identical data across engines.** pgvector and the custom AM share the *same* table;
-  the external engine holds the same vectors with a deterministic id mapping (`point id =
-  i+1`). Any data difference invalidates the comparison.
+- **Name the input under which the fast path should fail** and test it first. A friendly
+  fixture hides the failure that matters. Declare it as `[methodology] adversarial_axis`;
+  `check_methodology.py` warns when it is missing.
+- **Record the realized condition next to the configured one.** If the config says "1%
+  selectivity", "N = 1M", or "burst of 10k", the artifact must show what the fixture actually
+  produced. A configured condition the fixture does not realize is a silent bug: every
+  number downstream describes a different experiment.
+- **Hold queries out of the loaded data** unless the scenario is about self-lookup. A query
+  copied from the data finds itself first.
+- **Real data before confident claims.** Synthetic fixtures are for speed; production claims
+  need real distributions at multiple scales.
+- **Identical data across compared systems.** Any data difference invalidates the comparison.
+
+Filtered ANN: correlated filter buckets with measured pass rates (case §1).
 
 ---
 
-## 2. Exact ground truth
+## 2. Exact oracle
 
-Per (query, selectivity): brute-force top-k by the real metric (cosine) over **only the
-passing rows**, in numpy. This is the denominator for recall@k. Without exact truth you are
-measuring agreement between two approximate engines, which is not recall.
+Score quality against a deterministic reference computed independently of the system under
+test. Without it you measure agreement between two systems, not correctness.
+
+- Compute it once per (query, condition), outside the timed window, and reuse it for every
+  knob value.
+- Prefer two independent oracle implementations that agree (ground-truth independence; see
+  `crossover-and-cost.md`).
+
+Filtered ANN: brute-force top-k over only the passing rows (case §2).
 
 ---
 
-## 3. Operating point — matched recall, NOT matched ef
+## 3. Operating point — matched quality, NOT matched knobs
 
-Engines have different knobs; comparing at a shared `ef` is meaningless. Instead:
+Systems have different knobs; comparing at a shared knob value is meaningless.
 
-- Sweep each engine's own knob (ef_search, ef, scan budget).
-- For each engine × selectivity, pick the **matched-recall cell**: the *lowest* ef that
-  reaches recall ≥ threshold (0.94). If none reaches it, report the max-recall cell and say
-  so.
-- Each engine traces its own recall-vs-knob frontier; you compare frontiers. This is the
-  apples-to-apples view.
+- Sweep each system's own knob.
+- For each system × condition, pick the **matched-quality cell**: the cheapest setting that
+  reaches a predeclared quality threshold. If none reaches it, report the best cell and say so.
+- Compare frontiers, not single points.
 
-An exact path (e.g. pgvector prefilter = bitmap + exact Sort) has recall = 1.0 by
-construction — note it; it is the slow-but-correct baseline, not a tuning win.
+An exact path has maximum quality by construction. Note it: it is the slow-but-correct
+baseline, not a tuning win.
+
+Filtered ANN: lowest `ef` reaching recall ≥ 0.94 (case §3). The harness's scenario C records it
+per selectivity with the index path forced, so an exact-scan plan cannot pose as the operating
+point.
 
 ---
 
@@ -74,22 +86,22 @@ Use staged exploration:
 
 1. **Declare axes and fixed controls.** Separate dataset axes, query axes, planner knobs,
    physical knobs, hardware/runtime knobs, and reporting thresholds.
-2. **Freeze fairness controls.** Same data, same query set, same recall threshold, same
+2. **Freeze fairness controls.** Same data, same query set, same quality threshold, same
    PostgreSQL version, same hardware window, same warmup, same result schema.
 3. **One-axis scouts.** Sweep each uncertain knob against a stable baseline to find active
    ranges and dead ranges. Drop dead ranges before multi-axis work.
 4. **Frontier cells.** Keep cells that can change the Pareto frontier, the crossover, or the
    suitability map. Neighboring dominated cells are sampled sparsely for sanity, not exhaustively.
-5. **Refine around knees.** Spend budget near recall knees, latency cliffs, memory limits, and
+5. **Refine around knees.** Spend budget near quality knees, latency cliffs, memory limits, and
    planner flip points.
 6. **Cap the budget before running.** A benchmark plan must name max cells, max runtime, and
    promotion gates. If the budget is exceeded, shrink the space; do not silently add cells.
 
-Compare Pareto frontiers: recall/QPS, recall/p95, recall/pages, and cost/query where relevant.
-Use them to find suitability zones, not only absolute winners. A dominated option may still be
-the right choice under an omitted axis such as memory budget, write rate, cold-start behavior,
-operator complexity, or hardware availability. Do not compare a single flattering point unless it
-is the predeclared operating point.
+Compare Pareto frontiers (quality/QPS, quality/p95, quality/pages, cost/query where relevant)
+within one system at one condition. Use them to find suitability zones, not only absolute
+winners. A dominated option may still be the right choice under an omitted axis such as memory
+budget, write rate, cold-start behavior, operator complexity, or hardware availability. Do not
+compare a single flattering point unless it is the predeclared operating point.
 
 If one option dominates across the measured space, write the mechanism hypothesis that explains
 why and name the dimension where the dominance should break. Verify that mechanism by isolating
@@ -100,18 +112,23 @@ logs. An unexplained win is a prompt to search for hidden parameters, not a reas
 
 ## 5. Metrics and TRUST LABELING
 
-Label every number by how much the host can be trusted to have produced it.
+Label every number by how much the host can be trusted to have produced it. Label each
+**metric**, not each row: one result row carries both SOLID and INDICATIVE numbers, and a
+single row-level label cannot say both.
 
-| Metric | Trust | Why |
+| Metric kind | Trust | Why |
 |---|---|---|
-| **recall@k** | **SOLID** | deterministic, host-independent. The headline. |
-| relative / qualitative ordering | **SOLID** | all engines under the *same* noise, so ordering is real |
+| **quality against a deterministic oracle** (recall@k, exactness, delivered-once counts) | **SOLID** | deterministic, host-independent. The headline. |
+| realized fixture condition (pass rate, actual N) | **SOLID** | counted, not timed |
+| relative / qualitative ordering | **SOLID** | all systems under the *same* noise, so ordering is real |
 | absolute latency (ms) | **INDICATIVE** | shared-host jitter inflates median/p95 2–7× |
 | throughput (QPS) | **INDICATIVE** | concurrency noise + client transport ceiling |
-| index size | **SOLID** | deterministic |
+| deterministic sizes (index, artifact) | **SOLID** | deterministic |
 | build time | approx | partly contended on a shared host |
 
 State this table at the top of the report. The verdict must rest on the SOLID rows.
+`lint_report.py` rejects a report whose timing figures carry no INDICATIVE label
+(`RPT-TRUST-SPLIT`).
 
 ### Latency: report `min | median`, both INDICATIVE; never headline `min`
 
@@ -119,9 +136,9 @@ State this table at the top of the report. The verdict must rest on the SOLID ro
 
 - It is an **extreme order statistic** — monotonically decreasing in sample count, i.e.
   "the luckiest sample," and it trends *below* the true uncontended latency as samples grow.
-- It **understates**: a measured cell showed `min` 9.4 ms while the quiet-host truth for the
-  same cell was ~21.5 ms — a noisier host produced a *lower* min, proving min tracks the
-  best sample, not the real warm latency.
+- It **understates**: in the filtered-ANN campaign a measured cell showed `min` 9.4 ms while
+  the quiet-host truth for the same cell was ~21.5 ms — a noisier host produced a *lower* min,
+  proving min tracks the best sample, not the real warm latency.
 - It **hides intrinsic engine tails** (optimizer/segment variance, buffer/MVCC) that are
   part of real performance, not noise.
 - Picking the metric that most flatters noisy data is **motivated reasoning**. Name it.
@@ -133,64 +150,71 @@ is the tell that the host is clean.
 
 ---
 
-## 6. Competitor fairness
+## 6. Fairness — equalized conditions, not identical knobs
 
-- **Let external engines settle.** After load, a forced-HNSW optimizer churns (saw 114%
-  CPU); the first run gave garbage (p95 1100 ms / 12 QPS). Wait for status `green` +
-  `indexed_vectors_count == N` + CPU idle before measuring. **Do not** raise
-  `indexing_threshold` to silence it — that de-indexes segments back to exact search and
-  silently changes what you are measuring.
-- **Configure the baseline fairly, then let it fail honestly.** pgvector `iterative_scan`
-  needs `strict_order` + a raised `max_scan_tuples` to have any chance; with the defaults it
-  collapses further (a rigged cripple). Give it the fair config — then its
-  correlated-filter failure (recall capped ~0.2–0.5 at any ef) is a *real* finding you can
-  stand behind.
+- **Configure each baseline fairly, then let it fail honestly.** A crippled baseline makes
+  the win meaningless; a fairly configured baseline's failure is a finding you can defend.
+- **Let systems settle before measuring.** Background indexing, compaction, or optimizer
+  churn after load produces garbage numbers; wait for the system's own "ready" signal.
+- **Verify the codepath.** Confirm whether each system used its index, an exact scan, or a
+  fallback path before interpreting quality or latency.
+
+Filtered ANN: external-engine settling and pgvector `iterative_scan` configuration (case §6).
 
 ---
 
-## 7. Throughput — transport-bound; read shape, not ceiling
+## 7. Timing windows and throughput
 
-- Use **multiprocessing** clients (no Python GIL cap).
-- **Isolate** each engine: the orchestrator drops the other engines' indexes so each is
-  measured alone on the shared cores.
-- A concurrency sweep `{1,4,8,16,32}`, each cell a fixed steady-state window (e.g. 6 s),
-  QPS = completed / wall time.
-- **Beware the client ceiling.** An HTTP/JSON client (httpx) whose QPS *plateaus by
-  concurrency 8* is client/transport-bound, not server-bound — gRPC would raise it. So a
-  result like "custom AM > external engine QPS" in such a rig is a *rig artifact*, not an engine
-  verdict. Quote the **shape** (rises then plateaus) and the in-substrate comparison
-  (vs pgvector), not the cross-substrate absolute ceiling. Single-query latency on a quiet
-  host is the fairer head-to-head.
+- **Time only the system under test.** Oracle computation, quality scoring, and diagnostics
+  (EXPLAIN, counters) run outside the timed window, or the reported speed includes the harness.
+- **Warm each cell before timing it**, or cell order (and the previous cell's diagnostics)
+  decides cache warmth and biases the frontier.
+- `EXPLAIN (ANALYZE)` executes the query again. Its buffer counts describe that re-execution
+  (usually warmer), not the timed call; label them that way.
+- **Make the timed query use the plan EXPLAIN reports.** EXPLAIN is planned afresh every time,
+  but a driver's auto-prepared statement can switch to a cached generic plan that ignores later
+  planner settings (`enable_seqscan`, forced plans). Plan every timed execution (psycopg 3:
+  `prepare_threshold = None`), or the plan label and the measured run describe different plans.
+  In the filtered-ANN harness this made a forced-index cell report exact-path recall under an
+  `Index Scan` label.
+- **Name what a QPS number is.** Serial single-client QPS is the inverse of latency, not
+  throughput. Real throughput needs multiprocessing clients (no GIL cap), each system isolated
+  on the shared cores, a concurrency sweep, and fixed steady-state windows
+  (QPS = completed / wall time).
+- **Beware the client ceiling.** A client whose QPS plateaus early is transport-bound; a
+  cross-substrate "A beats B on QPS" from such a rig is a rig artifact. Quote the shape and the
+  in-substrate comparison.
+
+Filtered ANN: an httpx client plateau at concurrency 8 (case §7).
 
 ---
 
 ## 8. Caveats template (paste into every report)
 
-1. **Matched recall, not matched ef** — engines compared at lowest ef reaching ≥ threshold.
-2. **The fixture is deliberately hard** (correlated filter) — a random filter narrows gaps.
-3. **Storage/transport are not equal** — in-PostgreSQL (MVCC, shared buffers, libpq, TOAST)
-   vs a purpose-built in-memory engine over HTTP/JSON. Absolute latency is not
-   apples-to-apples.
-4. **Throughput is INDICATIVE and transport-bound** — client and server share cores; HTTP
-   client plateaus early.
-5. **Build does not scale past ~N cores** (measured idle %); build time is a floor for the
-   index class.
-6. **Scope** — one host, one fixture family, a small query set, one dim. Treat absolutes as
-   indicative; the **scaling trend and the recall/latency trade-offs** are the takeaway.
-   p99/min are extreme order statistics — read median/p95 as primary.
+1. **Operating point** — systems compared at matched quality, not matched knobs.
+2. **Fixture difficulty** — which adversarial axis, and the realized condition next to the
+   configured one.
+3. **Substrate differences** — storage, transport, and process model are not equal; absolute
+   latency is not apples-to-apples across substrates.
+4. **Throughput is INDICATIVE** — and say how it was measured (serial or multiprocessing).
+5. **Scope** — hosts, fixture families, query-set size, scales. Treat absolutes as indicative;
+   the trends and trade-offs are the takeaway. p99/min are extreme order statistics — read
+   median/p95 as primary.
+
+Case-specific caveats: filtered ANN case §8; accelerator in `crossover-and-cost.md`.
 
 ---
 
-## Harness shape (reference)
+## Harness shape
 
-| Stage | File (example) | Does |
+| Stage | Does | Filtered-ANN harness file |
 |---|---|---|
-| fixture | `cohere_prep.py` | build correlated buckets, held-out queries |
-| load + truth | `scale_load.py` | binary COPY into PG + upload to external engine + exact top-k |
-| measure | `scalebench.py` / `bench3way_*.py` | recall sweep + latency dist + multiprocessing QPS |
-| per-scale driver | `run_scale.sh` | build index, run measure, dump JSON |
-| report | `scale_report.py` / `bench3way_report.py` | extract tables from result JSON |
-| frontier | `pareto.py` | recall-QPS Pareto (see `../performance/resource-pareto.md`) |
+| fixture | build data and held-out queries; record realized conditions | `fixtures/synthetic.py` |
+| oracle | exact reference, once per condition | `targets/prefilter_exact.py`, `scenarios/common.py::exact_ids` |
+| measure | time target calls only; score and diagnose after the window | `scenarios/common.py::run_selectivity_case` |
+| report | tables from the artifact, trust per metric, reproduce command at the bottom | `report.py` |
+| frontier | Pareto within one (target, condition) group | `pareto.py` |
+| gates | methodology before the run, report honesty before review | `assets/validation/` |
 
-Commit the result JSONs and the `REPORT_*.md`; put exact reproduce commands at the bottom of
+Commit the result artifacts and the `REPORT_*.md`; put exact reproduce commands at the bottom of
 every report. Fix all seeds.

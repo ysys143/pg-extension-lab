@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-import math
 import time
 from typing import Any
 
+from fixtures.synthetic import passes
+
+from ._metric import l2
 from .base import QueryResult
 
 
 class PrefilterExactTarget:
+    """Exact filtered top-k: the ground-truth oracle, and a baseline with recall 1.0 by construction."""
+
     name = "prefilter-exact"
+    has_search_knob = False
 
     def __init__(self, config: dict[str, Any]):
         self.rows: list[tuple[int, list[float], int]] = []
@@ -27,11 +32,7 @@ class PrefilterExactTarget:
 
     def query_filtered(self, query: list[float], filter_value: int, k: int) -> QueryResult:
         started = time.perf_counter()
-        scored = []
-        for rid, vec, filt in self.rows:
-            if filt == filter_value:
-                dist = math.sqrt(sum((a - b) ** 2 for a, b in zip(query, vec)))
-                scored.append((dist, rid))
+        scored = [(l2(query, vec), rid) for rid, vec, bucket in self.rows if passes(bucket, filter_value)]
         scored.sort()
         return QueryResult([rid for _, rid in scored[:k]], (time.perf_counter() - started) * 1000.0, {})
 
@@ -47,4 +48,3 @@ class PrefilterExactTarget:
 
 def create_target(config: dict[str, Any]):
     return PrefilterExactTarget(config)
-

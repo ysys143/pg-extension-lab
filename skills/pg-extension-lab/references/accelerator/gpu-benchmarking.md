@@ -73,7 +73,7 @@ correctness rule.
 
 The resource ceiling is a real finding, printed verbatim: "50M×384 fp32 = 73 GiB >
 2×40 GB VRAM → GPU INDEX BUILD FAILED." VRAM-budget and shard-count sweeps are run *as benchmarks*
-(`gpu_resources_bench.csv`), with `peak_vram_mb / gpu_s / energy_j` columns alongside latency.
+(that campaign's `gpu_resources_bench.csv`), with `peak_vram_mb / gpu_s / energy_j` columns alongside latency.
 See resource governance in `../performance/governance.md`.
 
 ## Cost-model calibration

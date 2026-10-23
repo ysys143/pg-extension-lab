@@ -27,17 +27,24 @@ filtered-index conclusion.
 
 ## Result schema
 
-Every row should carry at least:
+Every row should carry at least the core fields:
 
 ```text
 run_id, stage, ring, dataset, dataset_hash, postgres_version, extension_version,
-target, scenario, selectivity, k, recall_at_k, qps, p50_ms, p95_ms, p99_ms,
-pages_total_mean, pages_hit_mean, pages_read_mean, plan_summary, trust_label,
+target, scenario, k, recall_at_k (or the case's oracle-scored quality metric),
+qps, p50_ms, p95_ms, p99_ms, trust_recall, trust_perf,
 hardware, cost_model_version, command
 ```
 
-Use `SOLID` for deterministic correctness/recall claims and `INDICATIVE` for noisy shared-host
-latency/throughput. Do not headline `min_ms`.
+Each worked case adds the fields that describe its conditions:
+
+- filtered ANN: `fixture, selectivity, filter_value, pass_rate, search_value,
+  pages_total_mean, pages_hit_mean, pages_read_mean, plan_summary`
+- accelerator: `rows, dims, search_value, device, host, cost_usd_per_hour, energy_j_per_query`
+
+Label trust per metric: `trust_recall = SOLID` for oracle-scored quality and `trust_perf =
+INDICATIVE` for shared-host latency, throughput, and page counts. A single row-level label
+cannot say both. Do not headline `min_ms`.
 
 ## Cost and energy
 

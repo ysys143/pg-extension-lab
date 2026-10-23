@@ -15,8 +15,13 @@ class PgvectorExampleTarget:
 
     def __init__(self, config: dict[str, Any]):
         self.cfg = config["pgvector_example"]
+        self.has_search_knob = bool(self.cfg.get("search_guc"))
         self.conn = psycopg.connect(self.cfg["dsn"])
         self.conn.autocommit = True
+        # Plan every execution. An auto-prepared statement can switch to a cached generic plan
+        # that ignores later enable_seqscan changes, so the timed query would run a different
+        # plan from the EXPLAIN that labels it.
+        self.conn.prepare_threshold = None
 
     def setup(self) -> None:
         with self.conn.cursor() as cur:
@@ -42,22 +47,32 @@ class PgvectorExampleTarget:
                 cur.execute(self.cfg["index_sql"])
             cur.execute("ANALYZE " + self.cfg["table"])
 
+    def describe(self) -> dict[str, Any]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT current_setting('server_version'), "
+                "(SELECT extversion FROM pg_extension WHERE extname = 'vector')"
+            )
+            postgres_version, extension_version = cur.fetchone()
+        return {"postgres_version": postgres_version, "extension_version": extension_version}
+
+    # SET takes no bind parameters under psycopg 3 server-side binding; set_config() does.
     def set_search_knob(self, value: int) -> None:
         guc = self.cfg.get("search_guc")
         if guc:
             with self.conn.cursor() as cur:
-                cur.execute(f"SET {guc} = %s", (value,))
+                cur.execute("SELECT set_config(%s, %s, false)", (guc, str(value)))
 
     def force_index_scan(self, enabled: bool) -> None:
         with self.conn.cursor() as cur:
-            cur.execute("SET enable_seqscan = %s", ("off" if enabled else "on",))
+            cur.execute("SELECT set_config('enable_seqscan', %s, false)", ("off" if enabled else "on",))
 
     def _query_sql(self, explain: bool = False) -> str:
         prefix = "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " if explain else ""
         return (
             prefix
             + f"SELECT {self.cfg['id_column']} FROM {self.cfg['table']} "
-            + f"WHERE {self.cfg['filter_column']} = %s "
+            + f"WHERE {self.cfg['filter_column']} < %s "
             + f"ORDER BY {self.cfg['vector_column']} {self.cfg['distance_operator']} %s "
             + "LIMIT %s"
         )

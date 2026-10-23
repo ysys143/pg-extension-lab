@@ -5,15 +5,16 @@ max_minutes = 30
 [fixed]
 k = [10]
 dataset = ["synthetic-smoke"]
-targets = ["postgres_sql", "prefilter_exact"]
+targets = ["prefilter_exact", "postfilter_topn"]
 
 [scout]
+fixture = ["correlated", "uncorrelated"]
 selectivity = [0.01, 0.05, 0.10]
-search_value = [20, 40, 80, 160]
-concurrency = [1, 4, 8]
+search_value = [20, 80, 320, 1000]
 
 [frontier]
-# Cells known or suspected to affect recall/QPS/pages frontiers.
+# Cells known or suspected to affect the recall/QPS frontier: the adversarial fixture at the
+# low selectivities, around the recovery knee the scout located.
+fixture = ["correlated"]
 selectivity = [0.01, 0.05]
-search_value = [40, 80, 160]
-concurrency = [1, 8]
+search_value = [320, 1000]
