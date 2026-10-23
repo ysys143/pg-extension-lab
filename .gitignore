@@ -4,3 +4,7 @@
 
 # Python bytecode from running the harnesses
 __pycache__/
+
+# Rebuildable pilot datasets from assets/benchmark-accelerator/run_pilot.sh
+*.fbin
+*.ibin
