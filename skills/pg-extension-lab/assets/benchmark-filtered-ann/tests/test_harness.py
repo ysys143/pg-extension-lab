@@ -258,13 +258,15 @@ class SqlAdapterTest(unittest.TestCase):
 
 class ExplainTest(unittest.TestCase):
     def test_plan_summary_shows_the_scan_below_limit(self):
+        # PostgreSQL buffer counts are inclusive: each node repeats its children's pages.
+        pages = {"Shared Hit Blocks": 4, "Shared Read Blocks": 1}
         plan = [{"Plan": {
-            "Node Type": "Limit", "Shared Hit Blocks": 1,
-            "Plans": [{"Node Type": "Sort", "Plans": [{"Node Type": "Seq Scan", "Shared Read Blocks": 4}]}],
+            "Node Type": "Limit", **pages,
+            "Plans": [{"Node Type": "Sort", **pages, "Plans": [{"Node Type": "Seq Scan", **pages}]}],
         }}]
         summary = summarize_explain(plan)
         self.assertEqual(summary["plan_summary"], "Limit > Sort > Seq Scan")
-        self.assertEqual(summary["pages_total"], 5)
+        self.assertEqual((summary["pages_hit"], summary["pages_read"], summary["pages_total"]), (4, 1, 5))
 
 
 class ParetoTest(unittest.TestCase):
