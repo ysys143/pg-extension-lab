@@ -73,7 +73,9 @@ Systems have different knobs; comparing at a shared knob value is meaningless.
 An exact path has maximum quality by construction. Note it: it is the slow-but-correct
 baseline, not a tuning win.
 
-Filtered ANN: lowest `ef` reaching recall ≥ 0.94 (case §3; harness scenario C records it).
+Filtered ANN: lowest `ef` reaching recall ≥ 0.94 (case §3). The harness's scenario C records it
+per selectivity with the index path forced, so an exact-scan plan cannot pose as the operating
+point.
 
 ---
 
@@ -165,6 +167,8 @@ Filtered ANN: external-engine settling and pgvector `iterative_scan` configurati
 
 - **Time only the system under test.** Oracle computation, quality scoring, and diagnostics
   (EXPLAIN, counters) run outside the timed window, or the reported speed includes the harness.
+- **Warm each cell before timing it**, or cell order (and the previous cell's diagnostics)
+  decides cache warmth and biases the frontier.
 - `EXPLAIN (ANALYZE)` executes the query again. Its buffer counts describe that re-execution
   (usually warmer), not the timed call; label them that way.
 - **Name what a QPS number is.** Serial single-client QPS is the inverse of latency, not

@@ -39,6 +39,7 @@ These are the filtered-ANN worked case's scenarios
 - A: selectivity sweep with correlated and uncorrelated filters.
 - B: post-filter recall failure against exact filtered ground truth.
 - C: candidate-expansion recovery — recall recovering as candidate expansion increases, reported
-  as the lowest knob that reaches the recall threshold.
+  per selectivity as the lowest knob that reaches the recall threshold (index path forced, so an
+  exact-scan plan cannot pose as an operating point).
 - D: correlation stress, where the passing set is spatially far from the query-nearest path.
 

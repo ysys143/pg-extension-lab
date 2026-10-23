@@ -17,7 +17,9 @@ class Target(Protocol):
     Filter semantics: a row passes when its filter column is below `filter_value`
     (`fixtures.synthetic.passes`). `query_filtered` returns the ids of the k nearest passing rows.
     Set `has_search_knob = False` when `set_search_knob` is a no-op; scenarios then run once
-    instead of repeating identical cells for every knob value.
+    instead of repeating identical cells for every knob value. Order results by L2 distance: the
+    exact oracle does (`targets/_metric.py`). An optional `describe()` returns version facts
+    (e.g. postgres_version, extension_version) that the runner copies into the artifact.
     """
 
     name: str

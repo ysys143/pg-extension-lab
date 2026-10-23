@@ -18,6 +18,10 @@ class PgvectorExampleTarget:
         self.has_search_knob = bool(self.cfg.get("search_guc"))
         self.conn = psycopg.connect(self.cfg["dsn"])
         self.conn.autocommit = True
+        # Plan every execution. An auto-prepared statement can switch to a cached generic plan
+        # that ignores later enable_seqscan changes, so the timed query would run a different
+        # plan from the EXPLAIN that labels it.
+        self.conn.prepare_threshold = None
 
     def setup(self) -> None:
         with self.conn.cursor() as cur:
@@ -42,6 +46,15 @@ class PgvectorExampleTarget:
             if self.cfg.get("index_sql"):
                 cur.execute(self.cfg["index_sql"])
             cur.execute("ANALYZE " + self.cfg["table"])
+
+    def describe(self) -> dict[str, Any]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT current_setting('server_version'), "
+                "(SELECT extversion FROM pg_extension WHERE extname = 'vector')"
+            )
+            postgres_version, extension_version = cur.fetchone()
+        return {"postgres_version": postgres_version, "extension_version": extension_version}
 
     # SET takes no bind parameters under psycopg 3 server-side binding; set_config() does.
     def set_search_knob(self, value: int) -> None:

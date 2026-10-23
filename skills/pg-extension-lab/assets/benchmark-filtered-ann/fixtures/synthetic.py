@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 BUCKETS = 100
 FIXTURES = ("correlated", "uncorrelated")
@@ -12,6 +12,8 @@ class Workload:
     fixture: str
     queries: list[list[float]]
     far_queries: list[list[float]]
+    # Ground truth keyed by (query set, filter_value, k), shared by every target and scenario.
+    truth: dict = field(default_factory=dict)
 
 
 def passes(bucket: int, filter_value: int) -> bool:

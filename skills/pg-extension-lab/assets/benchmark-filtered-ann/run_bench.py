@@ -4,6 +4,7 @@ import argparse
 import importlib
 import json
 import platform
+import re
 import sys
 import time
 import tomllib
@@ -27,6 +28,11 @@ SCENARIOS = {
     "c": "scenarios.c_candidate_expansion",
     "d": "scenarios.d_correlation",
 }
+
+# The exact oracle ranks by L2 (targets/_metric.py); a target ordering by another metric would
+# score its own exact path below 1.0.
+ORACLE_OPERATOR = "<->"
+RANGE_FILTER = re.compile(r"\{filter_column\}\s*<\s*%s")
 
 
 def load_config(path: Path) -> dict:
@@ -57,15 +63,27 @@ def validate_config(config: dict) -> list[str]:
         if not 0 < threshold <= 1:
             errors.append("run.recall_threshold must be in (0, 1]")
         for name, item in config["targets"].items():
-            if item.get("enabled", False) and "module" not in item:
+            if not item.get("enabled", False):
+                continue
+            if "module" not in item:
                 errors.append(f"missing targets.{name}.module")
-            if item.get("enabled", False) and item.get("module") == "targets.postgres_sql":
+            if item.get("module") == "targets.postgres_sql":
                 if "postgres_sql" not in config:
                     errors.append("targets.postgres_sql enabled but [postgres_sql] is missing")
                 else:
                     for key in ("dsn", "insert_sql", "query_sql"):
                         if key not in config["postgres_sql"]:
                             errors.append(f"missing postgres_sql.{key}")
+                    for key in ("query_sql", "explain_sql"):
+                        sql = config["postgres_sql"].get(key)
+                        if sql and not RANGE_FILTER.search(sql):
+                            errors.append(f"postgres_sql.{key} must filter with {{filter_column}} < %s "
+                                          "(rows pass below filter_value)")
+            if item.get("module") == "examples.pgvector_target":
+                operator = config.get("pgvector_example", {}).get("distance_operator", ORACLE_OPERATOR)
+                if operator != ORACLE_OPERATOR:
+                    errors.append(f"pgvector_example.distance_operator must be {ORACLE_OPERATOR}: "
+                                  "the exact oracle ranks by L2")
     return errors
 
 
@@ -77,6 +95,17 @@ def pass_rate_warnings(rows: list, selectivities: list) -> list[str]:
         if abs(realized - float(sel)) > max(0.1 * float(sel), 1 / len(rows)):
             warnings.append(f"selectivity {sel}: realized pass rate {realized:.4f}")
     return warnings
+
+
+def search_values_for(config: dict, target_name: str, target) -> list[int | None]:
+    """Each target sweeps its own knob: [<target>].search_values, else [run].search_values."""
+    if not getattr(target, "has_search_knob", True):
+        return [None]
+    values = config.get(target_name, {}).get("search_values") or config["run"].get("search_values")
+    if not values:
+        raise SystemExit(f"target {target_name} has a search knob but no search_values in "
+                         f"[{target_name}] or [run]")
+    return [int(v) for v in values]
 
 
 def enabled_targets(config: dict) -> list[tuple[str, str]]:
@@ -129,7 +158,11 @@ def main() -> int:
         return 0
 
     max_selectivity = max(float(s) for s in selectivities)
+    if "d" in scenario_keys and "correlated" in fixtures and max_selectivity > 0.5:
+        print("WARN far-queries: max selectivity > 0.5 leaves too little room above the passing "
+              "range; scenario D will not stress correlation", file=sys.stderr)
     results = []
+    target_info: dict[str, dict] = {}
     started = time.time()
     for fixture in fixtures:
         rows = make_dataset(rows_n, dims, seed, fixture)
@@ -137,30 +170,35 @@ def main() -> int:
             print(f"WARN pass-rate [{fixture}] {warning}", file=sys.stderr)
         workload = make_workload(int(config["run"]["queries"]), dims, seed, fixture, max_selectivity)
         exact = create_exact(config)
-        exact.setup()
-        exact.insert_batch(rows)
-        for target_name, module_name in target_specs:
-            target = create_target(module_name, config)
-            target.setup()
-            target.insert_batch(rows)
-            try:
-                for key in scenario_keys:
-                    scenario = importlib.import_module(SCENARIOS[key])
-                    for row in scenario.run(config, target, exact, workload):
-                        row.update({
-                            "target": target_name,
-                            "dataset": dataset["name"],
-                            "fixture": fixture,
-                            "pass_rate": pass_rate(rows, row["filter_value"]),
-                            "k": k,
-                            "trust_recall": "SOLID",
-                            "trust_perf": "INDICATIVE",
-                        })
-                        results.append(row)
-            finally:
-                target.teardown()
-                target.close()
-        exact.close()
+        try:
+            exact.setup()
+            exact.insert_batch(rows)
+            for target_name, module_name in target_specs:
+                target = create_target(module_name, config)
+                try:
+                    target.setup()
+                    target.insert_batch(rows)
+                    if target_name not in target_info:
+                        target_info[target_name] = getattr(target, "describe", dict)()
+                    search_values = search_values_for(config, target_name, target)
+                    for key in scenario_keys:
+                        scenario = importlib.import_module(SCENARIOS[key])
+                        for row in scenario.run(config, target, exact, workload, search_values):
+                            row.update({
+                                "target": target_name,
+                                "dataset": dataset["name"],
+                                "fixture": fixture,
+                                "pass_rate": pass_rate(rows, row["filter_value"]),
+                                "k": k,
+                                "trust_recall": "SOLID",
+                                "trust_perf": "INDICATIVE",
+                            })
+                            results.append(row)
+                finally:
+                    target.teardown()
+                    target.close()
+        finally:
+            exact.close()
 
     artifact = {
         "meta": {
@@ -170,6 +208,7 @@ def main() -> int:
             "elapsed_s": time.time() - started,
             "profile": config.get("methodology", {}).get("profile"),
             "recall_threshold": float(config["run"].get("recall_threshold", 0.94)),
+            "targets": target_info,
         },
         "results": results,
     }

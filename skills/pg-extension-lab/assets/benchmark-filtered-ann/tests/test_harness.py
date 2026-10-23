@@ -5,12 +5,16 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+HARNESS = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(HARNESS))
 
 import pareto  # noqa: E402
 import run_bench  # noqa: E402
@@ -25,13 +29,15 @@ from fixtures.synthetic import (  # noqa: E402
     passes,
     representable_selectivity,
 )
-from scenarios import a_selectivity_sweep  # noqa: E402
-from scenarios.common import exact_ids, recovery_point, run_selectivity_case  # noqa: E402
+from scenarios import a_selectivity_sweep, b_postfilter_recall, c_candidate_expansion, d_correlation  # noqa: E402
+from scenarios.common import best_cell, recovery_point, run_selectivity_case, summarize_plans  # noqa: E402
 from targets._explain import summarize_explain  # noqa: E402
 from targets._metric import l2  # noqa: E402
 from targets.base import QueryResult  # noqa: E402
 from targets.postfilter_topn import PostfilterTopNTarget  # noqa: E402
 from targets.prefilter_exact import PrefilterExactTarget  # noqa: E402
+
+SCENARIO_MODULES = (a_selectivity_sweep, b_postfilter_recall, c_candidate_expansion, d_correlation)
 
 
 def loaded(target_cls, rows):
@@ -41,9 +47,9 @@ def loaded(target_cls, rows):
     return target
 
 
-def smoke_config(search_values):
+def smoke_config():
     return {
-        "run": {"k": 10, "search_values": search_values, "recall_threshold": 0.94},
+        "run": {"k": 10, "recall_threshold": 0.94, "warmup_passes": 0},
         "dataset": {"selectivities": [0.01, 0.05, 0.10]},
     }
 
@@ -71,20 +77,23 @@ class FixtureTest(unittest.TestCase):
             for query in make_queries(50, 8, 3, fixture):
                 self.assertNotIn(tuple(query), vectors)
 
-    def test_far_queries_sit_outside_every_passing_set(self):
-        workload = make_workload(20, 8, 3, "correlated", max_selectivity=0.10)
+    def test_far_query_neighborhoods_fail_every_filter(self):
+        rows = make_dataset(1000, 16, 42, "correlated")
+        workload = make_workload(10, 16, 42, "correlated", max_selectivity=0.10)
+        widest = filter_value_for_selectivity(0.10)
         for query in workload.far_queries:
-            self.assertGreater(sum(query) / len(query), 0.4)
+            nearest = sorted(rows, key=lambda row: l2(query, row[1]))[:10]
+            self.assertFalse(any(passes(bucket, widest) for _, _, bucket in nearest))
 
 
 class TargetTest(unittest.TestCase):
     def setUp(self):
         self.rows = make_dataset(1000, 16, 42, "correlated")
-        self.queries = make_queries(10, 16, 42, "correlated")
+        self.workload = Workload("correlated", make_queries(10, 16, 42, "correlated"), [])
 
     def test_prefilter_exact_returns_nearest_passing_rows(self):
         exact = loaded(PrefilterExactTarget, self.rows)
-        for query in self.queries:
+        for query in self.workload.queries:
             got = exact.query_filtered(query, 5, 10).ids
             want = [rid for _, rid in sorted((l2(query, vec), rid) for rid, vec, b in self.rows if passes(b, 5))][:10]
             self.assertEqual(got, want)
@@ -92,9 +101,9 @@ class TargetTest(unittest.TestCase):
     def test_postfilter_recall_is_monotone_and_non_trivial(self):
         exact = loaded(PrefilterExactTarget, self.rows)
         target = loaded(PostfilterTopNTarget, self.rows)
-        expected = exact_ids(exact, self.queries, 5, 10)
+        expected = [exact.query_filtered(q, 5, 10).ids for q in self.workload.queries]
         recalls = [
-            run_selectivity_case(target, self.queries, expected, 5, 10, budget)["recall_at_k"]
+            run_selectivity_case(target, self.workload.queries, expected, 5, 10, budget, 0)["recall_at_k"]
             for budget in (20, 80, 320, 1000)
         ]
         self.assertEqual(recalls, sorted(recalls))
@@ -102,15 +111,24 @@ class TargetTest(unittest.TestCase):
         self.assertEqual(recalls[-1], 1.0)
 
 
-class CountingExact(PrefilterExactTarget):
+class RecordingExact(PrefilterExactTarget):
     def __init__(self, rows):
         super().__init__({})
         self.insert_batch(rows)
-        self.calls = 0
+        self.queries_seen: list[tuple] = []
 
     def query_filtered(self, query, filter_value, k):
-        self.calls += 1
+        self.queries_seen.append(tuple(query))
         return super().query_filtered(query, filter_value, k)
+
+
+class ForceRecordingTarget(PostfilterTopNTarget):
+    def __init__(self, config):
+        super().__init__(config)
+        self.force_calls: list[bool] = []
+
+    def force_index_scan(self, enabled):
+        self.force_calls.append(enabled)
 
 
 class SlowExplainTarget(PostfilterTopNTarget):
@@ -124,22 +142,62 @@ class InstantTarget(SlowExplainTarget):
         return QueryResult([], 0.0, {})
 
 
+class CountingTarget(PostfilterTopNTarget):
+    calls = 0
+
+    def query_filtered(self, query, filter_value, k):
+        self.calls += 1
+        return QueryResult([], 0.0, {})
+
+
 class ScenarioTest(unittest.TestCase):
     def setUp(self):
         self.rows = make_dataset(300, 8, 1, "correlated")
-        self.workload = Workload("correlated", make_queries(5, 8, 1, "correlated"), [])
+        self.workload = make_workload(5, 8, 1, "correlated", max_selectivity=0.10)
 
-    def test_ground_truth_is_computed_once_per_query_and_filter(self):
-        exact = CountingExact(self.rows)
+    def test_oracle_runs_once_per_query_set_and_filter_across_scenarios(self):
+        exact = RecordingExact(self.rows)
         target = loaded(PostfilterTopNTarget, self.rows)
-        a_selectivity_sweep.run(smoke_config([20, 80, 320]), target, exact, self.workload)
-        self.assertEqual(exact.calls, len(self.workload.queries) * 3)
+        for module in SCENARIO_MODULES:
+            module.run(smoke_config(), target, exact, self.workload, [20, 80, 300])
+        # queries x 3 selectivities (A, B, C share them) + far queries x the widest filter (D)
+        self.assertEqual(len(exact.queries_seen), 5 * 3 + 5 * 1)
+
+    def test_d_scores_far_queries(self):
+        exact = RecordingExact(self.rows)
+        target = loaded(PostfilterTopNTarget, self.rows)
+        d_correlation.run(smoke_config(), target, exact, self.workload, [20])
+        self.assertEqual(set(exact.queries_seen), {tuple(q) for q in self.workload.far_queries})
+        self.assertFalse(set(exact.queries_seen) & {tuple(q) for q in self.workload.queries})
+
+    def test_only_b_c_d_force_the_index_path(self):
+        for module, expected in zip(SCENARIO_MODULES, ([], [True, False], [True, False], [True, False])):
+            target = loaded(ForceRecordingTarget, self.rows)
+            rows = module.run(smoke_config(), target, loaded(PrefilterExactTarget, self.rows), self.workload, [20])
+            self.assertEqual(target.force_calls, expected, module.__name__)
+            self.assertEqual({row["plan_mode"] for row in rows}, {"planner" if not expected else "force_index"})
+
+    def test_c_reports_recovery_and_best_cell_per_selectivity(self):
+        exact = loaded(PrefilterExactTarget, self.rows)
+        target = loaded(PostfilterTopNTarget, self.rows)
+        rows = c_candidate_expansion.run(smoke_config(), target, exact, self.workload, [300, 10])
+        self.assertEqual({row["selectivity"] for row in rows}, {0.01, 0.05, 0.10})
+        self.assertEqual([row["search_value"] for row in rows[:2]], [10, 300])  # swept upward
+        for row in rows:
+            self.assertEqual(row["recovery_search_value"], 300)  # budget = all rows -> exact
+            self.assertEqual((row["best_search_value"], row["best_recall"]), (300, 1.0))
 
     def test_knobless_target_runs_each_cell_once(self):
         exact = loaded(PrefilterExactTarget, self.rows)
-        rows = a_selectivity_sweep.run(smoke_config([20, 80, 320]), exact, exact, self.workload)
+        values = run_bench.search_values_for({"run": {"search_values": [20, 80]}}, "prefilter_exact", exact)
+        rows = a_selectivity_sweep.run(smoke_config(), exact, exact, self.workload, values)
         self.assertEqual(len(rows), 3)
         self.assertEqual({row["search_value"] for row in rows}, {None})
+
+    def test_warmup_passes_run_before_the_timed_window(self):
+        target = loaded(CountingTarget, self.rows)
+        run_selectivity_case(target, self.workload.queries, [[]] * 5, 5, 10, None, warmup_passes=2)
+        self.assertEqual(target.calls, 5 * 3)  # two untimed passes + one timed pass
 
     def test_explain_runs_outside_the_timed_window(self):
         target = loaded(InstantTarget, self.rows)
@@ -148,15 +206,24 @@ class ScenarioTest(unittest.TestCase):
         # Inside the window, five 20 ms EXPLAIN calls would cap qps near 50.
         self.assertGreater(result["qps"], 500)
 
-    def test_recovery_point_is_lowest_knob_reaching_threshold(self):
+    def test_recovery_point_and_best_cell(self):
         rows = [
             {"search_value": 20, "recall_at_k": 0.5},
             {"search_value": 80, "recall_at_k": 0.95},
-            {"search_value": 320, "recall_at_k": 1.0},
+            {"search_value": 320, "recall_at_k": 0.95},
         ]
         self.assertEqual(recovery_point(rows, 0.94), 80)
         self.assertIsNone(recovery_point(rows[:1], 0.94))
         self.assertIsNone(recovery_point([{"search_value": None, "recall_at_k": 1.0}], 0.94))
+        best = best_cell(rows)
+        self.assertIsNotNone(best)
+        self.assertEqual(best and best["search_value"], 80)  # lowest knob on a recall tie
+        self.assertIsNone(best_cell([{"search_value": None, "recall_at_k": 1.0}]))
+
+    def test_mixed_plans_are_not_hidden(self):
+        plans = [{"plan_summary": "Limit > Index Scan"}] * 6 + [{"plan_summary": "Limit > Sort > Seq Scan"}] * 4
+        self.assertEqual(summarize_plans(plans), "mixed: Limit > Index Scan x6; Limit > Sort > Seq Scan x4")
+        self.assertEqual(summarize_plans(plans[:2]), "Limit > Index Scan")
 
 
 class ExplainTest(unittest.TestCase):
@@ -171,15 +238,25 @@ class ExplainTest(unittest.TestCase):
 
 
 class ParetoTest(unittest.TestCase):
+    def frontier_sizes(self, rows):
+        return [len(group["frontier"]) for group in pareto.frontier_groups(rows)]
+
     def test_frontier_is_judged_per_selectivity(self):
         base = {"target": "t", "scenario": "a", "fixture": "correlated"}
         rows = [
             {**base, "selectivity": 0.01, "recall_at_k": 0.5, "qps": 10.0},
             {**base, "selectivity": 0.10, "recall_at_k": 0.9, "qps": 100.0},
         ]
-        groups = pareto.frontier_groups(rows)
-        self.assertEqual(len(groups), 2)
-        self.assertTrue(all(len(group["frontier"]) == 1 for group in groups))
+        self.assertEqual(self.frontier_sizes(rows), [1, 1])
+
+    def test_frontier_is_judged_per_fixture_and_scenario(self):
+        base = {"target": "t", "selectivity": 0.05}
+        rows = [
+            {**base, "scenario": "a", "fixture": "correlated", "recall_at_k": 0.2, "qps": 10.0},
+            {**base, "scenario": "a", "fixture": "uncorrelated", "recall_at_k": 0.9, "qps": 100.0},
+            {**base, "scenario": "c", "fixture": "uncorrelated", "recall_at_k": 0.1, "qps": 5.0},
+        ]
+        self.assertEqual(self.frontier_sizes(rows), [1, 1, 1])
 
 
 class ConfigTest(unittest.TestCase):
@@ -202,10 +279,86 @@ class ConfigTest(unittest.TestCase):
         errors = run_bench.validate_config(self.config(correlated=True))
         self.assertTrue(any("dataset.fixtures" in error for error in errors), errors)
 
+    def test_non_l2_pgvector_operator_is_rejected(self):
+        config = self.config()
+        config["targets"] = {"pgvector_example": {"module": "examples.pgvector_target", "enabled": True}}
+        config["pgvector_example"] = {"distance_operator": "<=>"}
+        self.assertTrue(any("distance_operator" in e for e in run_bench.validate_config(config)))
+
+    def test_equality_filter_sql_is_rejected(self):
+        config = self.config()
+        config["targets"] = {"postgres_sql": {"module": "targets.postgres_sql", "enabled": True}}
+        config["postgres_sql"] = {"dsn": "x", "insert_sql": "x",
+                                  "query_sql": "SELECT id FROM t WHERE {filter_column} = %s LIMIT %s"}
+        self.assertTrue(any("query_sql" in e for e in run_bench.validate_config(config)))
+        config["postgres_sql"]["query_sql"] = "SELECT id FROM t WHERE {filter_column} < %s LIMIT %s"
+        self.assertEqual(run_bench.validate_config(config), [])
+
+    def test_each_target_sweeps_its_own_knob(self):
+        knob = PostfilterTopNTarget({})
+        config = {"run": {"search_values": [20, 1000]}, "postfilter_topn": {"search_values": [5]}}
+        self.assertEqual(run_bench.search_values_for(config, "postfilter_topn", knob), [5])
+        self.assertEqual(run_bench.search_values_for(config, "other", knob), [20, 1000])
+        with self.assertRaises(SystemExit):
+            run_bench.search_values_for({"run": {}}, "postfilter_topn", knob)
+
     def test_pass_rate_warning_fires_on_unrealized_selectivity(self):
         rows = [(i, [0.0], 0 if i < 3 else 99) for i in range(100)]  # 3% pass for every bucket < 99
         self.assertEqual(run_bench.pass_rate_warnings(rows, [0.03]), [])
         self.assertEqual(len(run_bench.pass_rate_warnings(rows, [0.10])), 1)
+
+
+SMALL_CONFIG = """
+[run]
+seed = 3
+k = 5
+queries = 3
+search_values = [10, 200]
+warmup_passes = 0
+
+[dataset]
+name = "tiny"
+rows = 200
+dims = 4
+selectivities = [0.05, 0.10]
+fixtures = ["correlated", "uncorrelated"]
+
+[methodology]
+profile = "filtered-ann"
+adversarial_axis = "selectivity x correlation"
+
+[targets.prefilter_exact]
+module = "targets.prefilter_exact"
+enabled = true
+
+[targets.postfilter_topn]
+module = "targets.postfilter_topn"
+enabled = true
+"""
+
+
+class EndToEndTest(unittest.TestCase):
+    def test_run_bench_writes_labeled_rows_for_every_fixture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, output = Path(tmp) / "c.toml", Path(tmp) / "out.json"
+            config.write_text(SMALL_CONFIG)
+            proc = subprocess.run(
+                [sys.executable, "-B", "run_bench.py", "--config", str(config), "--output", str(output)],
+                cwd=HARNESS, capture_output=True, text=True,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertEqual(proc.stderr, "")  # no pass-rate or far-query warnings
+            artifact = json.loads(output.read_text())
+        rows = artifact["results"]
+        # per fixture: prefilter (no knob) A2 B1 C2 D1 = 6; postfilter (2 knobs) A4 B2 C4 D2 = 12
+        self.assertEqual(len(rows), 2 * (6 + 12))
+        self.assertEqual({row["fixture"] for row in rows}, set(FIXTURES))
+        for row in rows:
+            self.assertEqual((row["trust_recall"], row["trust_perf"]), ("SOLID", "INDICATIVE"))
+            self.assertAlmostEqual(row["pass_rate"], float(row["selectivity"]))
+            self.assertIn(row["plan_mode"], {"planner", "force_index"})
+        self.assertEqual(artifact["meta"]["profile"], "filtered-ann")
+        self.assertEqual(set(artifact["meta"]["targets"]), {"prefilter_exact", "postfilter_topn"})
 
 
 if __name__ == "__main__":

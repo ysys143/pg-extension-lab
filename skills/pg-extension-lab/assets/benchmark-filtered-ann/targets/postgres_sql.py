@@ -50,6 +50,10 @@ class PostgresSqlTarget:
         self.context.setdefault("dims", config["dataset"]["dims"])
         self.conn = psycopg.connect(self.cfg["dsn"])
         self.conn.autocommit = True
+        # Plan every execution. An auto-prepared statement can switch to a cached generic plan
+        # that ignores later force_plan_sql changes, so the timed query would run a different
+        # plan from the EXPLAIN that labels it.
+        self.conn.prepare_threshold = None
 
     def setup(self) -> None:
         with self.conn.cursor() as cur:
@@ -64,6 +68,11 @@ class PostgresSqlTarget:
                 cur.executemany(insert_sql, [bind_params(param_names, rid, vec, filt, None) for rid, vec, filt in batch])
             for sql in as_list(self.cfg.get("after_load_sql")):
                 cur.execute(render(sql, self.context))
+
+    def describe(self) -> dict[str, Any]:
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT current_setting('server_version')")
+            return {"postgres_version": cur.fetchone()[0]}
 
     def set_search_knob(self, value: int) -> None:
         sql = self.cfg.get("set_search_knob_sql")

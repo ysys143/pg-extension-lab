@@ -3,6 +3,7 @@ from __future__ import annotations
 import statistics
 import time
 from collections import Counter
+from contextlib import contextmanager
 from typing import Any
 
 
@@ -20,27 +21,24 @@ def percentile(values: list[float], pct: float) -> float:
     return ordered[idx]
 
 
-def configured_search_values(config: dict[str, Any]) -> list[int]:
-    if "search_values" in config.get("run", {}):
-        return [int(v) for v in config["run"]["search_values"]]
-    for name, spec in config.get("targets", {}).items():
-        if spec.get("enabled", False):
-            values = config.get(name, {}).get("search_values")
-            if values:
-                return [int(v) for v in values]
-    return [0]
+def exact_ids(exact, workload, query_set: str, filter_value: int, k: int) -> list[list[int]]:
+    """Ground truth for one (fixture, query set, filter), computed once and cached on the workload
+    so every target, scenario, and knob value reuses it."""
+    key = (query_set, filter_value, k)
+    if key not in workload.truth:
+        queries = getattr(workload, query_set)
+        workload.truth[key] = [exact.query_filtered(query, filter_value, k).ids for query in queries]
+    return workload.truth[key]
 
 
-def search_values_for(config: dict[str, Any], target) -> list[int | None]:
-    if not getattr(target, "has_search_knob", True):
-        return [None]
-    values: list[int | None] = list(configured_search_values(config))
-    return values
-
-
-def exact_ids(exact, queries: list[list[float]], filter_value: int, k: int) -> list[list[int]]:
-    """Ground truth for one (query set, filter), computed once and reused for every knob value."""
-    return [exact.query_filtered(query, filter_value, k).ids for query in queries]
+@contextmanager
+def index_path_forced(target):
+    """Ask the target to use its index. The plan column shows whether it did."""
+    target.force_index_scan(True)
+    try:
+        yield
+    finally:
+        target.force_index_scan(False)
 
 
 def recovery_point(rows: list[dict[str, Any]], threshold: float) -> int | None:
@@ -49,11 +47,34 @@ def recovery_point(rows: list[dict[str, Any]], threshold: float) -> int | None:
     return min(reached) if reached else None
 
 
+def best_cell(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Highest-recall knob cell (lowest knob on ties): what to report when nothing reaches threshold."""
+    knobbed = [r for r in rows if r["search_value"] is not None]
+    return max(knobbed, key=lambda r: (r["recall_at_k"], -r["search_value"])) if knobbed else None
+
+
+def summarize_plans(explains: list[dict[str, Any]]) -> str:
+    counts = Counter(str(e.get("plan_summary", "")) for e in explains)
+    if len(counts) == 1:
+        return next(iter(counts))
+    return "mixed: " + "; ".join(f"{plan} x{n}" for plan, n in counts.most_common())
+
+
 def run_selectivity_case(
-    target, queries: list[list[float]], expected: list[list[int]], filter_value: int, k: int, search_value: int | None
+    target,
+    queries: list[list[float]],
+    expected: list[list[int]],
+    filter_value: int,
+    k: int,
+    search_value: int | None,
+    warmup_passes: int = 1,
 ) -> dict[str, Any]:
     if search_value is not None:
         target.set_search_knob(search_value)
+    # Untimed passes so cell order (and the previous cell's EXPLAIN) does not decide cache warmth.
+    for _ in range(warmup_passes):
+        for query in queries:
+            target.query_filtered(query, filter_value, k)
     # Timed window: target calls only. Scoring and EXPLAIN run after it so neither enters qps.
     observed = []
     started = time.perf_counter()
@@ -75,5 +96,5 @@ def run_selectivity_case(
         "pages_total_mean": statistics.mean(float(e.get("pages_total", 0)) for e in explains),
         "pages_hit_mean": statistics.mean(float(e.get("pages_hit", 0)) for e in explains),
         "pages_read_mean": statistics.mean(float(e.get("pages_read", 0)) for e in explains),
-        "plan_summary": Counter(str(e.get("plan_summary", "")) for e in explains).most_common(1)[0][0],
+        "plan_summary": summarize_plans(explains),
     }

@@ -2,10 +2,13 @@
 seed = 42
 k = 10
 queries = 10
-# Applies to every target with a search knob. 1000 = dataset.rows: the full-candidate endpoint.
+# Default knob sweep for targets with a search knob; a target's own section
+# ([<target>] search_values) overrides it. 1000 = dataset.rows: the full-candidate endpoint.
 search_values = [20, 80, 320, 1000]
 # Matched-recall operating point: scenario C reports the lowest knob reaching it.
 recall_threshold = 0.94
+# Untimed passes per cell before the timed window.
+warmup_passes = 1
 output = "results_smoke.json"
 
 [dataset]

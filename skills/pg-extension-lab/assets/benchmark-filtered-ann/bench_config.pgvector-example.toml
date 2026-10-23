@@ -3,6 +3,7 @@ seed = 42
 k = 10
 queries = 10
 recall_threshold = 0.94
+warmup_passes = 1
 output = "results_pgvector_smoke.json"
 
 [dataset]
@@ -22,10 +23,12 @@ table = "bench_items"
 id_column = "id"
 vector_column = "embedding"
 filter_column = "category"
+# Must stay <->: the exact oracle ranks by L2 (--validate-config rejects anything else).
 distance_operator = "<->"
 extension_sql = "CREATE EXTENSION IF NOT EXISTS vector"
 index_sql = "CREATE INDEX IF NOT EXISTS bench_items_embedding_idx ON bench_items USING hnsw (embedding vector_l2_ops)"
 search_guc = "hnsw.ef_search"
+# This target's own knob sweep (overrides [run].search_values).
 search_values = [20, 40, 80, 160]
 
 [targets.pgvector_example]

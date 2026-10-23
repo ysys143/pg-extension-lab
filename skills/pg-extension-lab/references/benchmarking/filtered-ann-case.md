@@ -23,16 +23,25 @@ gate rules (`CFG-SELECTIVITY`, `CFG-ADVERSARIAL`, `RPT-PASSRATE`, `RPT-RECALL`).
 
 | Scenario | Harness file | Measures |
 |---|---|---|
-| A — selectivity sweep | `scenarios/a_selectivity_sweep.py` | every selectivity × knob, on correlated and uncorrelated fixtures |
-| B — post-filter recall failure | `scenarios/b_postfilter_recall.py` | recall against exact filtered ground truth at the lowest selectivity |
-| C — candidate-expansion recovery | `scenarios/c_candidate_expansion.py` | progressive recall recovery as candidate expansion grows; the lowest knob reaching the recall threshold |
+| A — selectivity sweep | `scenarios/a_selectivity_sweep.py` | every selectivity × knob, on correlated and uncorrelated fixtures, planner free to choose |
+| B — post-filter recall failure | `scenarios/b_postfilter_recall.py` | recall against exact filtered ground truth at the lowest selectivity, index path forced |
+| C — candidate-expansion recovery | `scenarios/c_candidate_expansion.py` | per selectivity, index path forced: progressive recall recovery as candidate expansion grows; the lowest knob reaching the recall threshold, or the best cell when none does (§3) |
 | D — correlation stress | `scenarios/d_correlation.py` | queries whose neighborhood fails the filter, index path forced; the uncorrelated fixture is the control |
 
 The harness's pgvector sample (`sample_artifacts/REPORT_pgvector_smoke.md`, 1,000 rows,
-pgvector 0.8.7) reproduces D in miniature. With the index forced, correlated far queries get
-recall 0.0 at every `ef` from 20 to 160, while the uncorrelated control climbs from 0.19 to 0.98.
-At that size the planner chose `Seq Scan > Sort` for A–C, so their 1.0 is the exact path. The
-report's `plan` column is what tells the two apart.
+pgvector 0.8.7) reproduces the case in miniature:
+
+- A: left to itself, the planner chose `Seq Scan > Sort` at that size, so A's 1.0 is the exact
+  path.
+- B–D: with the HNSW index forced, B's 1% post-filter recall stays at 0.00–0.10 on the correlated
+  fixture.
+- C never reaches 0.94 on the correlated fixture; its best is 0.35 at `ef` 160 for 10%.
+- D's correlated far queries get recall 0.0 at every `ef` from 20 to 160, while the
+  uncorrelated control climbs from 0.19 to 0.98.
+
+The report's `plan` column is what tells the exact path from the index path. The adapter turns
+off psycopg's auto-prepare: a cached generic plan ignored `enable_seqscan` and ran an exact
+plan under an EXPLAIN that said `Index Scan`.
 
 ## Contents
 
