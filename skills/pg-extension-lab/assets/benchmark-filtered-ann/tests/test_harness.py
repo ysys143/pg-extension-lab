@@ -407,6 +407,14 @@ class ReportTest(unittest.TestCase):
         self.assertIn("| pass rate |", text)
         self.assertIn("| recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) |", text)
 
+    def test_exact_path_means_a_sort_over_unlimited_input(self):
+        report = importlib.import_module("report")
+        self.assertTrue(report.is_exact_path("Limit > Sort > Seq Scan"))
+        self.assertTrue(report.is_exact_path("Limit > Sort > Bitmap Heap Scan > Bitmap Index Scan"))
+        self.assertTrue(report.is_exact_path("Limit > Sort > Index Scan"))  # btree feeding a sort
+        self.assertFalse(report.is_exact_path("Limit > Index Scan"))
+        self.assertFalse(report.is_exact_path("Limit > Sort > Subquery Scan > Limit > Index Scan"))
+
     def test_recovery_marks_mixed_plans_and_misses(self):
         mixed = {"recovery_search_value": 20, "best_search_value": 20, "best_recall": 1.0,
                  "plan_summary": "mixed: Limit > Index Scan x6; Limit > Sort > Seq Scan x4"}

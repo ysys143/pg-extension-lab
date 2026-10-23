@@ -124,7 +124,8 @@ report:
 
 Targets expose `setup`, `query_filtered`, `explain_filtered`, `force_index_scan`,
 `set_search_knob`, `insert_batch`, `teardown`, `close`, the `has_search_knob` attribute, and
-optionally `describe()` (see `targets/base.py`).
+optionally `describe()` (see `targets/base.py`). One instance serves the whole run: `setup` …
+`teardown` repeats once per fixture and `close` runs once at the end.
 
 Do not expand target APIs just because dependency APIs exist. Use docs to find the intended
 contract, inspect code/schema/tests to confirm the real contract, then add only the adapter

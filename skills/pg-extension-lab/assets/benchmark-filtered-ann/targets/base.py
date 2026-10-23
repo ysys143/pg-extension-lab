@@ -21,6 +21,10 @@ class Target(Protocol):
     exact oracle does (`targets/_metric.py`). An optional `describe()` returns version facts
     (e.g. postgres_version, extension_version) that the runner copies into the artifact.
 
+    Lifecycle: the runner creates one instance per run. For each fixture it calls `setup`,
+    `insert_batch`, the scenarios, then `teardown`, on that same instance; `close` runs once at
+    the end. Session state such as GUCs carries across fixtures, so apply knobs per cell.
+
     SQL adapters must plan every execution (psycopg 3: `conn.prepare_threshold = None`). EXPLAIN
     is always planned afresh, but an auto-prepared query can reuse a cached generic plan that
     ignores `force_index_scan`, so the plan label and the timed run would differ.

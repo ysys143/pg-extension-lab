@@ -22,8 +22,10 @@ def fmt_search(value) -> str:
 
 
 def is_exact_path(plan: str) -> bool:
-    """A Sort node means the distance order was computed exactly over the filtered rows."""
-    return "Sort" in plan.split(" > ")
+    """A Sort over unlimited input computes the distance order exactly over the filtered rows; a
+    Sort over a Limit (an index's candidate set re-sorted) does not."""
+    nodes = plan.split(" > ")
+    return "Sort" in nodes and "Limit" not in nodes[nodes.index("Sort") + 1:]
 
 
 def recovery_label(cells: list[dict]) -> str:
