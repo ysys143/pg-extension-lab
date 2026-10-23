@@ -32,8 +32,13 @@ calculations is not enough; it misses the PostgreSQL cost surface that users exp
 
 ## Required scenarios for filtered vectors
 
+These are the filtered-ANN worked case's scenarios
+([`../benchmarking/filtered-ann-case.md`](../benchmarking/filtered-ann-case.md)), implemented in
+`assets/benchmark-filtered-ann/scenarios/`.
+
 - A: selectivity sweep with correlated and uncorrelated filters.
 - B: post-filter recall failure against exact filtered ground truth.
-- C: incremental/progressive recall recovery as candidate expansion increases.
+- C: candidate-expansion recovery — recall recovering as candidate expansion increases, reported
+  as the lowest knob that reaches the recall threshold.
 - D: correlation stress, where the passing set is spatially far from the query-nearest path.
 

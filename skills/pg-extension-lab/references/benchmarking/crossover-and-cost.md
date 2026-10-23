@@ -109,7 +109,7 @@ Latency alone hides the economics when the new path uses an expensive resource.
 - **≥5 reps/cell, report dispersion (median + IQR), ban single measurements, pin and record
   every version** (commit, driver, instance, price, all non-default GUCs per run). NUMA-pin
   (`numactl`) the CPU baseline so a wide-vCPU engine isn't unfairly slowed. The `min_ms`
-  column stays an anti-pattern (see `methodology.md` §4) — report medians.
+  column stays an anti-pattern (see `methodology.md` §5) — report medians.
 - **Correct your own earlier estimates publicly when measurement inverts them.** Credibility
   comes from showing where your priors were wrong: a code-analysis guess of "GPU build ~10 s
   vs PG overhead ~45 s" inverted under measurement to build 82% / backend 18%; a projected

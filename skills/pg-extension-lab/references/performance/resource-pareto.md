@@ -56,7 +56,7 @@ fixture preloaded, each build is ~5–8 min, so the whole grid is an afternoon.
 
 For each selectivity, sweep `ef_search` and plot (recall, QPS). A point is **Pareto-optimal**
 iff no other point of the *same engine* has both ≥ recall AND ≥ QPS (with at least one
-strictly greater). `bench/pareto.py` computes and marks exactly this:
+strictly greater). The reference campaign's `bench/pareto.py` marked exactly this:
 
 ```python
 def _pareto_flags(points):  # points: [(ef, recall, qps, p99), ...]
@@ -69,8 +69,11 @@ def _pareto_flags(points):  # points: [(ef, recall, qps, p99), ...]
     return flags
 ```
 
+The copy-ready `assets/benchmark-filtered-ann/pareto.py` applies the same rule and prints one
+frontier per (target, scenario, fixture, selectivity) group:
+
 ```
-python bench/pareto.py bench/results_100k_low.json --selectivity 1
+python bench/filtered-ann/pareto.py bench/filtered-ann/results_smoke.json
 ```
 
 Compare **frontiers** between engines, never a single ef value. An engine wins if its
