@@ -43,6 +43,12 @@ from targets.prefilter_exact import PrefilterExactTarget  # noqa: E402
 SCENARIO_MODULES = (a_selectivity_sweep, b_postfilter_recall, c_candidate_expansion, d_correlation)
 
 
+def pearson(xs, ys):
+    mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    return cov / (sum((x - mx) ** 2 for x in xs) * sum((y - my) ** 2 for y in ys)) ** 0.5
+
+
 def loaded(target_cls, rows):
     target = target_cls({})
     target.setup()
@@ -77,8 +83,19 @@ class FixtureTest(unittest.TestCase):
         for fixture in FIXTURES:
             rows = make_dataset(500, 8, 3, fixture)
             vectors = {tuple(vec) for _, vec, _ in rows}
-            for query in make_queries(50, 8, 3, fixture):
+            for query in make_queries(50, 8, 3):
                 self.assertNotIn(tuple(query), vectors)
+
+    def test_fixtures_differ_only_in_bucket_assignment(self):
+        correlated = make_dataset(2000, 8, 5, "correlated")
+        uncorrelated = make_dataset(2000, 8, 5, "uncorrelated")
+        self.assertEqual([vec for _, vec, _ in correlated], [vec for _, vec, _ in uncorrelated])
+        near = make_workload(10, 8, 5, "correlated", 0.10)
+        control = make_workload(10, 8, 5, "uncorrelated", 0.10)
+        self.assertEqual((near.queries, near.far_queries), (control.queries, control.far_queries))
+        position = [sum(vec) / len(vec) for _, vec, _ in correlated]
+        self.assertGreater(pearson(position, [b for _, _, b in correlated]), 0.95)
+        self.assertLess(abs(pearson(position, [b for _, _, b in uncorrelated])), 0.1)
 
     def test_far_query_neighborhoods_fail_every_filter(self):
         rows = make_dataset(1000, 16, 42, "correlated")
@@ -92,7 +109,7 @@ class FixtureTest(unittest.TestCase):
 class TargetTest(unittest.TestCase):
     def setUp(self):
         self.rows = make_dataset(1000, 16, 42, "correlated")
-        self.workload = Workload("correlated", make_queries(10, 16, 42, "correlated"), [])
+        self.workload = Workload("correlated", make_queries(10, 16, 42), [])
 
     def test_prefilter_exact_returns_nearest_passing_rows(self):
         exact = loaded(PrefilterExactTarget, self.rows)
