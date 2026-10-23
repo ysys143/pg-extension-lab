@@ -42,6 +42,10 @@ A benchmark is only as honest as its hardest case.
 - **Real data before confident claims.** Synthetic fixtures are for speed; production claims
   need real distributions at multiple scales.
 - **Identical data across compared systems.** Any data difference invalidates the comparison.
+- **A control changes only the factor under test.** If the adversarial fixture and its control
+  also differ in data or query distribution, the gap between them cannot be credited to the
+  factor. (Filtered ANN: the correlated and uncorrelated fixtures share vectors and queries and
+  differ only in how filter buckets are assigned.)
 
 Filtered ANN: correlated filter buckets with measured pass rates (case §1).
 

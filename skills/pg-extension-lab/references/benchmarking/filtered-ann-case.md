@@ -28,17 +28,20 @@ gate rules (`CFG-SELECTIVITY`, `CFG-ADVERSARIAL`, `RPT-PASSRATE`, `RPT-RECALL`).
 | C — candidate-expansion recovery | `scenarios/c_candidate_expansion.py` | per selectivity, index path forced: progressive recall recovery as candidate expansion grows; the lowest knob reaching the recall threshold, or the best cell when none does (§3) |
 | D — correlation stress | `scenarios/d_correlation.py` | queries whose neighborhood fails the filter, index path forced; the uncorrelated fixture is the control |
 
-The harness's pgvector sample (`sample_artifacts/REPORT_pgvector_smoke.md`, 1,000 rows,
-pgvector 0.8.7) reproduces the case in miniature:
+The harness's pgvector sample (`sample_artifacts/REPORT_pgvector_smoke.md`, pgvector 0.8.7)
+reproduces the case in miniature. It is smoke scale (1,000 rows, 16 dims, 10 queries per
+condition): read it as a reproduction of failure and recovery under synthetic conditions, not as
+evidence about performance at scale. The two fixtures share vectors and queries and differ only
+in bucket assignment, so their gap is the correlation effect.
 
 - A: left to itself, the planner chose `Seq Scan > Sort` at that size, so A's 1.0 is the exact
   path.
-- B–D: with the HNSW index forced, B's 1% post-filter recall stays at 0.00–0.10 on the correlated
-  fixture.
-- C never reaches the 0.94 recall threshold on the correlated fixture; its best is 0.35 at
-  `ef` 160 for 10%.
+- B–D: with the HNSW index forced, B's 1% post-filter recall stays at or below 0.11 on both
+  fixtures. At 1% the failure comes from selectivity, not correlation.
+- C separates the fixtures: the correlated one never reaches the 0.94 recall threshold (best 0.31
+  at `ef` 160 for 10%), while the uncorrelated one crosses it at 10% with recall 1.000.
 - D's correlated far queries get recall 0.0 at every `ef` from 20 to 160, while the
-  uncorrelated control climbs from 0.19 to 0.98.
+  uncorrelated control on the same queries climbs from 0.14 to 1.0.
 
 The report's `plan` column is what tells the exact path from the index path. The adapter turns
 off psycopg's auto-prepare: a cached generic plan ignored `enable_seqscan` and ran an exact
