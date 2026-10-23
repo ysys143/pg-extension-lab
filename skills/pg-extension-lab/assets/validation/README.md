@@ -40,7 +40,7 @@ here instead of adding more prose.
 | `RPT-RUNID` | error | Feedback must remain attributable |
 | `RPT-REPRO` | error | Exact reproduce commands at the bottom of every report |
 | `RPT-TRUST` | error | Trust labeling — oracle-scored quality SOLID, shared-host timing INDICATIVE |
-| `RPT-TRUST-SPLIT` | error | Label per metric: a report with latency/throughput figures must mark them INDICATIVE |
+| `RPT-TRUST-SPLIT` | error | Label per metric: every timing column header (qps, p50/p95/p99, ms, latency) says INDICATIVE and not SOLID, and no recall column says INDICATIVE; a report without tables needs at least one INDICATIVE label |
 | `RPT-MINMS` | error | `min_ms` is never a headline |
 
 ### Case rules — `profile = "filtered-ann"`
@@ -54,8 +54,8 @@ Applied by `check_methodology.py` when the config declares `[methodology] profil
 |---|---|---|
 | `CFG-SELECTIVITY` | error | Selectivity is this case's first-class axis |
 | `CFG-ADVERSARIAL` | warn | `dataset.fixtures` includes `correlated`, this case's honest worst case |
-| `RPT-PASSRATE` | error | Record measured pass rates — realized selectivity next to the configured one |
-| `RPT-RECALL` | warn | Matched recall, not matched knobs |
+| `RPT-PASSRATE` | error | Record measured pass rates — a result-table column for the realized selectivity (prose does not count) |
+| `RPT-RECALL` | warn | Matched recall, not matched knobs — a recall column in a result table |
 
 A new case adds one function to `PROFILE_CHECKS` in `check_methodology.py` (and, if its reports
 need it, one to `lint_report.py`) instead of tightening the generic rules for everyone.

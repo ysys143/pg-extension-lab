@@ -62,7 +62,7 @@ def check_filtered_ann(config: dict) -> list[Finding]:
         findings.append(("error", "CFG-SELECTIVITY",
                          "filtered-ann: dataset.selectivities missing/empty — selectivity is this "
                          "case's first-class axis"))
-    if "correlated" not in dataset.get("fixtures", []):
+    if "correlated" not in dataset.get("fixtures", ["correlated"]):  # run_bench default
         findings.append(("warn", "CFG-ADVERSARIAL",
                          "filtered-ann: dataset.fixtures lacks \"correlated\" — a correlated filter is "
                          "this case's honest worst case; justify its absence in the hypothesis doc"))
