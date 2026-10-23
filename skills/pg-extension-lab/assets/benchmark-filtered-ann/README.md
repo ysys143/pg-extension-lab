@@ -59,7 +59,10 @@ python run_bench.py --config bench_config.pgvector-example.toml --scenario a
   fixture does not realize its selectivity.
 - `dataset.fixtures` lists `correlated` (filter key follows the vector's position) and/or
   `uncorrelated` (filter key independent of geometry). Every scenario runs on every fixture.
-- Queries are held out: drawn from the fixture's distribution, never copied from the data.
+- Both fixtures share the same vectors, queries, and far queries; only the bucket assignment
+  differs. A gap between them is the filter/geometry correlation, not a change in data or query
+  distribution.
+- Queries are held out: drawn from the data's distribution, never copied from the data.
 
 ## Targets
 
@@ -96,7 +99,9 @@ read alone (`--scenario b`). Do not sum cells across scenarios.
   cache warmth.
 - `qps` is single-client serial throughput over target calls only. Recall scoring and EXPLAIN
   run after the timed window. Real throughput needs multiprocessing clients (methodology §7).
-- `pages_*` come from a separate `EXPLAIN (ANALYZE, BUFFERS)` execution, not from the timed call.
+- `pages_*` come from a separate `EXPLAIN (ANALYZE, BUFFERS)` execution, not from the timed call,
+  and read the root node's counts. They are buffer accesses (shared hit + read), not distinct
+  pages: a page touched twice counts twice.
   `plan_summary` is the node path; a cell whose queries took different plans reads `mixed: …`.
 - Each row carries `trust_recall = SOLID` and `trust_perf = INDICATIVE`; the report labels
   every column.
@@ -111,15 +116,20 @@ report:
 - `REPORT_smoke.md` — the shipped config, no database.
 - `REPORT_pgvector_smoke.md` — `bench_config.pgvector-example.toml` against
   `docker run -d --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 pgvector/pgvector:pg17`
-  (pgvector 0.8.7, PostgreSQL 17.11).
-  - A: at 1,000 rows the planner picks `Seq Scan > Sort`, so its recall of 1.0 is the exact path.
-  - B, C, D force the HNSW `Index Scan`. At 1% selectivity, B's post-filter recall is 0.00 → 0.10
-    over `ef` 20 → 160 on the correlated fixture.
-  - C never reaches the 0.94 recall threshold on the correlated fixture; its best cells are
-    0.10 / 0.20 / 0.35 at `ef` 160. The uncorrelated fixture crosses the threshold only at 10%,
-    with recall 1.000 at `ef` 160.
-  - D gives 0.0 at every `ef` on correlated far queries, while the uncorrelated control climbs
-    from 0.19 to 0.98.
+  (pgvector 0.8.7, PostgreSQL 17.11). Smoke scale — 1,000 rows, 16 dims, 10 queries per
+  condition — so it reproduces where recall fails and recovers; it is not evidence of
+  performance or latency distributions at scale.
+  - A: at 1,000 rows the planner picks `Seq Scan > Sort` (14 buffer accesses: one pass over the
+    14-page table), so its recall of 1.0 is the exact path.
+  - B, C, D force the HNSW `Index Scan`. At 1% selectivity, B's post-filter recall rises only to
+    0.11 at `ef` 160 on both fixtures. At this size a 1% filter passes exactly k = 10 rows, so the
+    ground truth is every passing row and recall stays near ef/1,000 whatever the geometry; the
+    cell says nothing general about selectivity versus correlation.
+  - C separates the fixtures at 5% and 10%. The correlated fixture never reaches the 0.94 recall
+    threshold (best 0.11 / 0.20 / 0.31 at `ef` 160), while the uncorrelated one reaches 0.77 at
+    5% and crosses the threshold at 10% with recall 1.000 at `ef` 160.
+  - D gives 0.0 at every `ef` on correlated far queries, while the uncorrelated control (the same
+    queries and vectors) climbs from 0.14 to 1.0.
 
 ## Target adapter contract
 

@@ -9,12 +9,17 @@ TRUST_TABLE = """| metric | trust | why |
 | recall@k vs exact filtered ground truth | SOLID | deterministic oracle, host-independent |
 | realized selectivity (fixture count) | SOLID | counted from the fixture, not timed |
 | qps, p95 ms | INDICATIVE | shared-host timing; qps is single-client serial over target calls only |
-| pages/query | INDICATIVE | from a separate EXPLAIN (ANALYZE, BUFFERS) re-execution, not the timed call |
+| buffer accesses/query (shared hit + read) | INDICATIVE | from a separate EXPLAIN (ANALYZE, BUFFERS) re-execution, not the timed call; a page touched twice counts twice |
 
 `plan` is the EXPLAIN node path per cell, followed by the plan mode the harness requested
 (`planner` lets PostgreSQL choose; `force_index` asks for the index). Check it before reading
 recall as index quality: an exact path (Seq Scan or Bitmap Heap Scan, then Sort) scores 1.0 by
 construction."""
+
+
+# Below either size a run shows where recall fails and recovers, not performance at scale.
+SMOKE_ROWS = 100_000
+SMOKE_QUERIES = 100
 
 
 def fmt_search(value) -> str:
@@ -60,11 +65,21 @@ def main() -> int:
     for name, info in meta.get("targets", {}).items():
         if info:
             print(f"- {name}: " + ", ".join(f"{key} {value}" for key, value in sorted(info.items())))
+    scale = meta.get("dataset")
+    if scale:
+        line = (
+            f"- scale: {scale['rows']} rows, {scale['dims']} dims, {scale['queries_per_condition']} queries per "
+            f"condition, fixtures {', '.join(scale['fixtures'])}."
+        )
+        if scale["rows"] < SMOKE_ROWS or scale["queries_per_condition"] < SMOKE_QUERIES:
+            line += (" Smoke scale: the report shows where recall fails and recovers, not performance or "
+                     "latency distributions at scale.")
+        print(line)
     print(f"- recall threshold for the matched-recall operating point: {meta.get('recall_threshold')}\n")
     print(TRUST_TABLE)
     print(
         "\n| target | fixture | scenario | sel | pass rate | k | search | recall (SOLID) | "
-        "qps (INDICATIVE) | p95 ms (INDICATIVE) | pages/query (INDICATIVE) | plan |"
+        "qps (INDICATIVE) | p95 ms (INDICATIVE) | buffer accesses/query (INDICATIVE) | plan |"
     )
     print("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|")
     for row in rows:

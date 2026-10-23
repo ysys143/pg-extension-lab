@@ -217,6 +217,13 @@ def main() -> int:
             "elapsed_s": time.time() - started,
             "profile": config.get("methodology", {}).get("profile"),
             "recall_threshold": float(config["run"].get("recall_threshold", 0.94)),
+            "dataset": {
+                "name": dataset["name"],
+                "rows": rows_n,
+                "dims": dims,
+                "queries_per_condition": int(config["run"]["queries"]),
+                "fixtures": fixtures,
+            },
             "targets": target_info,
         },
         "results": results,

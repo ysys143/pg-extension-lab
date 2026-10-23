@@ -43,6 +43,12 @@ from targets.prefilter_exact import PrefilterExactTarget  # noqa: E402
 SCENARIO_MODULES = (a_selectivity_sweep, b_postfilter_recall, c_candidate_expansion, d_correlation)
 
 
+def pearson(xs, ys):
+    mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    return cov / (sum((x - mx) ** 2 for x in xs) * sum((y - my) ** 2 for y in ys)) ** 0.5
+
+
 def loaded(target_cls, rows):
     target = target_cls({})
     target.setup()
@@ -77,8 +83,19 @@ class FixtureTest(unittest.TestCase):
         for fixture in FIXTURES:
             rows = make_dataset(500, 8, 3, fixture)
             vectors = {tuple(vec) for _, vec, _ in rows}
-            for query in make_queries(50, 8, 3, fixture):
+            for query in make_queries(50, 8, 3):
                 self.assertNotIn(tuple(query), vectors)
+
+    def test_fixtures_differ_only_in_bucket_assignment(self):
+        correlated = make_dataset(2000, 8, 5, "correlated")
+        uncorrelated = make_dataset(2000, 8, 5, "uncorrelated")
+        self.assertEqual([vec for _, vec, _ in correlated], [vec for _, vec, _ in uncorrelated])
+        near = make_workload(10, 8, 5, "correlated", 0.10)
+        control = make_workload(10, 8, 5, "uncorrelated", 0.10)
+        self.assertEqual((near.queries, near.far_queries), (control.queries, control.far_queries))
+        position = [sum(vec) / len(vec) for _, vec, _ in correlated]
+        self.assertGreater(pearson(position, [b for _, _, b in correlated]), 0.95)
+        self.assertLess(abs(pearson(position, [b for _, _, b in uncorrelated])), 0.1)
 
     def test_far_query_neighborhoods_fail_every_filter(self):
         rows = make_dataset(1000, 16, 42, "correlated")
@@ -92,7 +109,7 @@ class FixtureTest(unittest.TestCase):
 class TargetTest(unittest.TestCase):
     def setUp(self):
         self.rows = make_dataset(1000, 16, 42, "correlated")
-        self.workload = Workload("correlated", make_queries(10, 16, 42, "correlated"), [])
+        self.workload = Workload("correlated", make_queries(10, 16, 42), [])
 
     def test_prefilter_exact_returns_nearest_passing_rows(self):
         exact = loaded(PrefilterExactTarget, self.rows)
@@ -258,13 +275,29 @@ class SqlAdapterTest(unittest.TestCase):
 
 class ExplainTest(unittest.TestCase):
     def test_plan_summary_shows_the_scan_below_limit(self):
+        # PostgreSQL buffer counts are inclusive: each node repeats its children's pages.
+        pages = {"Shared Hit Blocks": 4, "Shared Read Blocks": 1}
         plan = [{"Plan": {
-            "Node Type": "Limit", "Shared Hit Blocks": 1,
-            "Plans": [{"Node Type": "Sort", "Plans": [{"Node Type": "Seq Scan", "Shared Read Blocks": 4}]}],
+            "Node Type": "Limit", **pages,
+            "Plans": [{"Node Type": "Sort", **pages, "Plans": [{"Node Type": "Seq Scan", **pages}]}],
         }}]
         summary = summarize_explain(plan)
         self.assertEqual(summary["plan_summary"], "Limit > Sort > Seq Scan")
-        self.assertEqual(summary["pages_total"], 5)
+        self.assertEqual((summary["pages_hit"], summary["pages_read"], summary["pages_total"]), (4, 1, 5))
+
+    def test_buffers_come_from_the_root_when_an_initplan_overlaps(self):
+        # Shape and counts from a warm pgvector EXPLAIN of a query with an InitPlan: the
+        # InitPlan's 806 pages are already inside the Sort's 3473, and the root covers both.
+        plan = [{"Plan": {
+            "Node Type": "Limit", "Shared Hit Blocks": 3473,
+            "Plans": [
+                {"Node Type": "Aggregate", "Parent Relationship": "InitPlan", "Shared Hit Blocks": 806,
+                 "Plans": [{"Node Type": "Seq Scan", "Shared Hit Blocks": 806}]},
+                {"Node Type": "Sort", "Shared Hit Blocks": 3473,
+                 "Plans": [{"Node Type": "Seq Scan", "Shared Hit Blocks": 3473}]},
+            ],
+        }}]
+        self.assertEqual(summarize_explain(plan)["pages_total"], 3473)
 
 
 class ParetoTest(unittest.TestCase):
@@ -379,11 +412,11 @@ def report_row(**fields):
 
 
 class ReportTest(unittest.TestCase):
-    def render(self, rows):
+    def render(self, rows, **meta):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "r.json"
             path.write_text(json.dumps({"meta": {"run_id": "x", "command": "python run_bench.py",
-                                                 "profile": "filtered-ann", "recall_threshold": 0.94},
+                                                 "profile": "filtered-ann", "recall_threshold": 0.94, **meta},
                                         "results": rows}))
             proc = subprocess.run([sys.executable, "-B", "report.py", str(path)], cwd=HARNESS,
                                   capture_output=True, text=True, check=True)
@@ -406,6 +439,20 @@ class ReportTest(unittest.TestCase):
         self.assertIn("| no knob |", self.recovery_line(text, "exact"))
         self.assertIn("| pass rate |", text)
         self.assertIn("| recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) |", text)
+
+    def test_report_states_its_scale(self):
+        dataset = {"name": "s", "rows": 1000, "dims": 16, "queries_per_condition": 10,
+                   "fixtures": ["correlated", "uncorrelated"]}
+        text = self.render([report_row()], dataset=dataset)
+        self.assertIn("- scale: 1000 rows, 16 dims, 10 queries per condition, fixtures correlated, uncorrelated.", text)
+        self.assertIn("not performance or latency distributions at scale", text)
+
+    def test_large_runs_carry_no_smoke_caveat(self):
+        dataset = {"name": "s", "rows": 10_000_000, "dims": 1024, "queries_per_condition": 1000,
+                   "fixtures": ["correlated"]}
+        text = self.render([report_row()], dataset=dataset)
+        self.assertIn("- scale: 10000000 rows, 1024 dims, 1000 queries per condition, fixtures correlated.", text)
+        self.assertNotIn("Smoke scale", text)
 
     def test_exact_path_means_a_sort_over_unlimited_input(self):
         report = importlib.import_module("report")
@@ -466,6 +513,8 @@ class EndToEndTest(unittest.TestCase):
             self.assertIn(row["plan_mode"], {"planner", "force_index"})
         self.assertEqual(artifact["meta"]["profile"], "filtered-ann")
         self.assertEqual(set(artifact["meta"]["targets"]), {"prefilter_exact", "postfilter_topn"})
+        scale = artifact["meta"]["dataset"]
+        self.assertEqual((scale["rows"], scale["dims"], scale["queries_per_condition"]), (200, 4, 3))
 
 
 if __name__ == "__main__":
