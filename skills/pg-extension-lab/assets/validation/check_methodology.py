@@ -27,24 +27,50 @@ def load_toml(path: Path) -> dict:
 
 
 def check_config(config: dict) -> list[Finding]:
+    """Generic rules apply to every benchmark; case rules apply only under [methodology] profile."""
     findings: list[Finding] = []
     run = config.get("run", {})
-    dataset = config.get("dataset", {})
+    methodology = config.get("methodology", {})
 
     if "seed" not in run:
         findings.append(("error", "CFG-SEED",
                          "run.seed missing — fix every seed (Reproducibility is non-negotiable)"))
-    if not dataset.get("selectivities"):
-        findings.append(("error", "CFG-SELECTIVITY",
-                         "dataset.selectivities missing/empty — filtered benchmarks must sweep selectivity"))
-    if not dataset.get("correlated", False):
-        findings.append(("warn", "CFG-ADVERSARIAL",
-                         "dataset.correlated is false/missing — a correlated filter is the only honest "
-                         "worst case; justify an uncorrelated fixture in the hypothesis doc"))
     if "output" not in run:
         findings.append(("warn", "CFG-OUTPUT",
                          "run.output missing — result JSON must be a versioned artifact, not stdout"))
+    if not methodology.get("adversarial_axis"):
+        findings.append(("warn", "CFG-ADVERSARIAL-AXIS",
+                         "methodology.adversarial_axis missing — name the input distribution that "
+                         "should break the fast path (Adversarial fixture)"))
+
+    profile = methodology.get("profile")
+    if profile is not None:
+        check = PROFILE_CHECKS.get(profile)
+        if check is None:
+            findings.append(("error", "CFG-PROFILE",
+                             f"unknown methodology.profile {profile!r} — known: {sorted(PROFILE_CHECKS)}"))
+        else:
+            findings += check(config)
     return findings
+
+
+def check_filtered_ann(config: dict) -> list[Finding]:
+    """PROFILE — the filtered-ANN worked case (references/benchmarking/filtered-ann-case.md)."""
+    findings: list[Finding] = []
+    dataset = config.get("dataset", {})
+    if not dataset.get("selectivities"):
+        findings.append(("error", "CFG-SELECTIVITY",
+                         "filtered-ann: dataset.selectivities missing/empty — selectivity is this "
+                         "case's first-class axis"))
+    if "correlated" not in dataset.get("fixtures", []):
+        findings.append(("warn", "CFG-ADVERSARIAL",
+                         "filtered-ann: dataset.fixtures lacks \"correlated\" — a correlated filter is "
+                         "this case's honest worst case; justify its absence in the hypothesis doc"))
+    return findings
+
+
+# Case rules keyed by [methodology] profile. Add a case by adding one function here.
+PROFILE_CHECKS = {"filtered-ann": check_filtered_ann}
 
 
 def budget_verdict(frontier_cells: int, max_cells: int, full_grid: int) -> tuple[str, str]:

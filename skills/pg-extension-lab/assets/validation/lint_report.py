@@ -20,6 +20,9 @@ Finding = tuple[str, str, str]  # (severity, rule_id, message)
 # approximated as: title lines, meta bullets, and the first markdown table header row.
 HEADLINE_LINES = 15
 
+# Timing figures that a shared host cannot make SOLID.
+PERF_PATTERN = r"\bqps\b|\bp(?:50|95|99)|\blatency\b|_ms\b|\bms\b"
+
 
 def lint(text: str, name: str) -> list[Finding]:
     findings: list[Finding] = []
@@ -35,12 +38,28 @@ def lint(text: str, name: str) -> list[Finding]:
                          "the artifact in the report"))
     if not re.search(r"\b(SOLID|INDICATIVE)\b", text):
         findings.append(("error", "RPT-TRUST",
-                         f"{name}: no trust labels — label recall SOLID and shared-host "
-                         "latency INDICATIVE"))
+                         f"{name}: no trust labels — label oracle-scored quality SOLID and "
+                         "shared-host timing INDICATIVE"))
+    elif re.search(PERF_PATTERN, text, re.IGNORECASE) and not re.search(r"\bINDICATIVE\b", text):
+        findings.append(("error", "RPT-TRUST-SPLIT",
+                         f"{name}: latency/throughput figures carry no INDICATIVE label — label "
+                         "per metric, not per row"))
     if re.search(r"\bmin[_ ]?ms\b", headline):
         findings.append(("error", "RPT-MINMS",
                          f"{name}: min_ms appears in the headline zone — min_ms is never a "
-                         "headline; lead with recall and a trust-labeled percentile"))
+                         "headline; lead with the quality metric and a trust-labeled percentile"))
+    if re.search(r"profile:\s*filtered-ann", text, re.IGNORECASE):
+        findings += lint_filtered_ann(text, name)
+    return findings
+
+
+def lint_filtered_ann(text: str, name: str) -> list[Finding]:
+    """PROFILE — reports whose header declares `profile: filtered-ann`."""
+    findings: list[Finding] = []
+    if not re.search(r"pass[ _]rate", text, re.IGNORECASE):
+        findings.append(("error", "RPT-PASSRATE",
+                         f"{name}: filtered-ann report without measured pass rates — show the "
+                         "realized selectivity next to the configured one"))
     if not re.search(r"\brecall\b", text, re.IGNORECASE):
         findings.append(("warn", "RPT-RECALL",
                          f"{name}: no recall mentioned — engine comparisons must be at matched "
