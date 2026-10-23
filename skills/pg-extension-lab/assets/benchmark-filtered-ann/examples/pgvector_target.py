@@ -43,15 +43,16 @@ class PgvectorExampleTarget:
                 cur.execute(self.cfg["index_sql"])
             cur.execute("ANALYZE " + self.cfg["table"])
 
+    # SET takes no bind parameters under psycopg 3 server-side binding; set_config() does.
     def set_search_knob(self, value: int) -> None:
         guc = self.cfg.get("search_guc")
         if guc:
             with self.conn.cursor() as cur:
-                cur.execute(f"SET {guc} = %s", (value,))
+                cur.execute("SELECT set_config(%s, %s, false)", (guc, str(value)))
 
     def force_index_scan(self, enabled: bool) -> None:
         with self.conn.cursor() as cur:
-            cur.execute("SET enable_seqscan = %s", ("off" if enabled else "on",))
+            cur.execute("SELECT set_config('enable_seqscan', %s, false)", ("off" if enabled else "on",))
 
     def _query_sql(self, explain: bool = False) -> str:
         prefix = "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " if explain else ""

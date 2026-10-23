@@ -9,7 +9,10 @@ TRUST_TABLE = """| metric | trust | why |
 | recall@k vs exact filtered ground truth | SOLID | deterministic oracle, host-independent |
 | pass rate (realized selectivity) | SOLID | counted from the fixture |
 | qps, p95 ms | INDICATIVE | shared-host timing; qps is single-client serial over target calls only |
-| pages/query | INDICATIVE | from a separate EXPLAIN (ANALYZE, BUFFERS) re-execution, not the timed call |"""
+| pages/query | INDICATIVE | from a separate EXPLAIN (ANALYZE, BUFFERS) re-execution, not the timed call |
+
+`plan` is the most common EXPLAIN node path per cell: check it before reading recall as index
+quality. An exact path (Seq Scan or Bitmap Heap Scan, then Sort) scores 1.0 by construction."""
 
 
 def fmt_search(value) -> str:
@@ -38,15 +41,15 @@ def main() -> int:
     print(TRUST_TABLE)
     print(
         "\n| target | fixture | scenario | sel | pass rate | k | search | recall (SOLID) | "
-        "qps (INDICATIVE) | p95 ms (INDICATIVE) | pages/query (INDICATIVE) |"
+        "qps (INDICATIVE) | p95 ms (INDICATIVE) | pages/query (INDICATIVE) | plan |"
     )
-    print("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    print("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|")
     for row in rows:
         print(
             f"| {row['target']} | {row['fixture']} | {row['scenario']} | {float(row['selectivity']):.3f} | "
             f"{row['pass_rate']:.3f} | {row['k']} | {fmt_search(row['search_value'])} | "
             f"{row['recall_at_k']:.3f} | {row['qps']:.2f} | {row['p95_ms']:.2f} | "
-            f"{row['pages_total_mean']:.2f} |"
+            f"{row['pages_total_mean']:.2f} | {row.get('plan_summary', '')} |"
         )
 
     recovery_rows = {}

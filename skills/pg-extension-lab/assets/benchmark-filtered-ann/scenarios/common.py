@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import statistics
 import time
+from collections import Counter
 from typing import Any
 
 
@@ -74,4 +75,5 @@ def run_selectivity_case(
         "pages_total_mean": statistics.mean(float(e.get("pages_total", 0)) for e in explains),
         "pages_hit_mean": statistics.mean(float(e.get("pages_hit", 0)) for e in explains),
         "pages_read_mean": statistics.mean(float(e.get("pages_read", 0)) for e in explains),
+        "plan_summary": Counter(str(e.get("plan_summary", "")) for e in explains).most_common(1)[0][0],
     }

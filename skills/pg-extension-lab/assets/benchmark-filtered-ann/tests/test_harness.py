@@ -27,6 +27,7 @@ from fixtures.synthetic import (  # noqa: E402
 )
 from scenarios import a_selectivity_sweep  # noqa: E402
 from scenarios.common import exact_ids, recovery_point, run_selectivity_case  # noqa: E402
+from targets._explain import summarize_explain  # noqa: E402
 from targets._metric import l2  # noqa: E402
 from targets.base import QueryResult  # noqa: E402
 from targets.postfilter_topn import PostfilterTopNTarget  # noqa: E402
@@ -156,6 +157,17 @@ class ScenarioTest(unittest.TestCase):
         self.assertEqual(recovery_point(rows, 0.94), 80)
         self.assertIsNone(recovery_point(rows[:1], 0.94))
         self.assertIsNone(recovery_point([{"search_value": None, "recall_at_k": 1.0}], 0.94))
+
+
+class ExplainTest(unittest.TestCase):
+    def test_plan_summary_shows_the_scan_below_limit(self):
+        plan = [{"Plan": {
+            "Node Type": "Limit", "Shared Hit Blocks": 1,
+            "Plans": [{"Node Type": "Sort", "Plans": [{"Node Type": "Seq Scan", "Shared Read Blocks": 4}]}],
+        }}]
+        summary = summarize_explain(plan)
+        self.assertEqual(summary["plan_summary"], "Limit > Sort > Seq Scan")
+        self.assertEqual(summary["pages_total"], 5)
 
 
 class ParetoTest(unittest.TestCase):

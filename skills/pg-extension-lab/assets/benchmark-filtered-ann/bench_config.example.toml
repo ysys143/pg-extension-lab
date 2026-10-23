@@ -40,8 +40,9 @@ ORDER BY {id_column}
 LIMIT %s
 """
 query_params = ["filter_value", "k"]
-# Without set_search_knob_sql the target has no knob and each cell runs once.
-# set_search_knob_sql = "SET my_extension.ef_search = %s"
+# Without set_search_knob_sql the target has no knob and each cell runs once. SET cannot take
+# a bind parameter under psycopg 3, so use set_config():
+# set_search_knob_sql = "SELECT set_config('my_extension.ef_search', %s::text, false)"
 teardown_sql = ["DROP TABLE IF EXISTS {table}"]
 
 [postgres_sql.context]

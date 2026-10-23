@@ -1,6 +1,6 @@
 # Filtered ANN benchmark report
 
-- run_id: `20261023-143105`
+- run_id: `20261023-143506`
 - profile: filtered-ann
 - command: `python run_bench.py --config bench_config.example.toml --output sample_artifacts/results_smoke.json`
 - recall threshold for the matched-recall operating point: 0.94
@@ -12,68 +12,71 @@
 | qps, p95 ms | INDICATIVE | shared-host timing; qps is single-client serial over target calls only |
 | pages/query | INDICATIVE | from a separate EXPLAIN (ANALYZE, BUFFERS) re-execution, not the timed call |
 
-| target | fixture | scenario | sel | pass rate | k | search | recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) | pages/query (INDICATIVE) |
-|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| prefilter_exact | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 10524.01 | 0.15 | 0.00 |
-| prefilter_exact | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 7909.31 | 0.13 | 0.00 |
-| prefilter_exact | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 4260.15 | 0.48 | 0.00 |
-| prefilter_exact | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 12144.52 | 0.13 | 0.00 |
-| prefilter_exact | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 7754.44 | 0.17 | 0.00 |
-| prefilter_exact | correlated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 4676.45 | 0.29 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 0.000 | 534.51 | 2.03 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 0.080 | 478.20 | 2.54 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 320 | 0.250 | 336.86 | 6.38 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 1000 | 1.000 | 484.32 | 2.80 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 0.100 | 566.47 | 1.92 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 0.130 | 573.76 | 2.04 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 320 | 0.400 | 569.73 | 1.94 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 1000 | 1.000 | 552.03 | 2.04 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 0.160 | 563.97 | 1.99 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 0.220 | 562.61 | 2.20 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 320 | 0.400 | 527.97 | 2.52 | 0.00 |
-| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 1000 | 1.000 | 543.54 | 2.02 | 0.00 |
-| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.000 | 572.01 | 1.91 | 0.00 |
-| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 569.79 | 1.86 | 0.00 |
-| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 320 | 0.250 | 575.17 | 1.77 | 0.00 |
-| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 1000 | 1.000 | 544.46 | 2.04 | 0.00 |
-| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.100 | 587.81 | 1.71 | 0.00 |
-| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.130 | 586.93 | 1.73 | 0.00 |
-| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 320 | 0.400 | 554.92 | 2.01 | 0.00 |
-| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 1000 | 1.000 | 533.67 | 2.73 | 0.00 |
-| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.000 | 587.10 | 1.71 | 0.00 |
-| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.000 | 571.90 | 1.96 | 0.00 |
-| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 320 | 0.000 | 583.44 | 1.86 | 0.00 |
-| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 1000 | 1.000 | 569.69 | 1.80 | 0.00 |
-| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 16451.89 | 0.06 | 0.00 |
-| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 7347.32 | 0.17 | 0.00 |
-| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 4685.94 | 0.22 | 0.00 |
-| prefilter_exact | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 16506.20 | 0.06 | 0.00 |
-| prefilter_exact | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 7912.96 | 0.13 | 0.00 |
-| prefilter_exact | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 4622.67 | 0.23 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 0.020 | 580.48 | 1.80 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 0.080 | 577.98 | 1.91 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 320 | 0.390 | 577.51 | 1.78 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 1000 | 1.000 | 554.27 | 1.91 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 0.060 | 563.31 | 1.94 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 0.320 | 577.54 | 1.73 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 320 | 1.000 | 573.79 | 1.74 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 1000 | 1.000 | 557.22 | 1.88 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 0.180 | 583.15 | 1.83 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 0.760 | 573.79 | 2.08 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 320 | 1.000 | 584.61 | 1.74 | 0.00 |
-| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 1000 | 1.000 | 566.99 | 1.79 | 0.00 |
-| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.020 | 572.26 | 2.18 | 0.00 |
-| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 572.83 | 1.80 | 0.00 |
-| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 320 | 0.390 | 571.67 | 1.78 | 0.00 |
-| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 1000 | 1.000 | 563.25 | 1.79 | 0.00 |
-| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.060 | 467.39 | 2.86 | 0.00 |
-| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.320 | 564.43 | 1.87 | 0.00 |
-| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 320 | 1.000 | 567.45 | 1.79 | 0.00 |
-| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 1000 | 1.000 | 568.80 | 1.84 | 0.00 |
-| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.190 | 548.15 | 2.21 | 0.00 |
-| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.770 | 560.12 | 1.90 | 0.00 |
-| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 320 | 1.000 | 573.05 | 1.82 | 0.00 |
-| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 1000 | 1.000 | 562.73 | 1.78 | 0.00 |
+`plan` is the most common EXPLAIN node path per cell: check it before reading recall as index
+quality. An exact path (Seq Scan or Bitmap Heap Scan, then Sort) scores 1.0 by construction.
+
+| target | fixture | scenario | sel | pass rate | k | search | recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) | pages/query (INDICATIVE) | plan |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| prefilter_exact | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 16566.58 | 0.06 | 0.00 | python-exact |
+| prefilter_exact | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 7885.40 | 0.14 | 0.00 | python-exact |
+| prefilter_exact | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 4820.25 | 0.24 | 0.00 | python-exact |
+| prefilter_exact | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 16620.49 | 0.06 | 0.00 | python-exact |
+| prefilter_exact | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 7253.38 | 0.20 | 0.00 | python-exact |
+| prefilter_exact | correlated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 4915.41 | 0.21 | 0.00 | python-exact |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 0.000 | 572.74 | 1.90 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 0.080 | 580.23 | 1.78 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 320 | 0.250 | 571.20 | 1.90 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 1000 | 1.000 | 571.44 | 1.75 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 0.100 | 576.62 | 1.90 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 0.130 | 549.78 | 2.37 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 320 | 0.400 | 519.61 | 2.45 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 1000 | 1.000 | 558.14 | 2.00 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 0.160 | 573.32 | 1.98 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 0.220 | 564.16 | 1.96 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 320 | 0.400 | 554.52 | 2.01 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 1000 | 1.000 | 553.38 | 1.98 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.000 | 533.46 | 2.41 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 563.80 | 2.18 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 320 | 0.250 | 570.83 | 1.90 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 1000 | 1.000 | 560.15 | 1.93 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.100 | 599.01 | 1.72 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.130 | 588.97 | 1.92 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 320 | 0.400 | 587.26 | 1.77 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 1000 | 1.000 | 540.49 | 2.11 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.000 | 583.64 | 1.79 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.000 | 475.30 | 3.50 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 320 | 0.000 | 581.16 | 1.76 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | correlated | d_correlation | 0.100 | 0.100 | 10 | 1000 | 1.000 | 559.62 | 2.18 | 0.00 | python-postfilter-top1000 |
+| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 16503.93 | 0.06 | 0.00 | python-exact |
+| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 7865.24 | 0.13 | 0.00 | python-exact |
+| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 3483.26 | 0.53 | 0.00 | python-exact |
+| prefilter_exact | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 16618.20 | 0.06 | 0.00 | python-exact |
+| prefilter_exact | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 7636.99 | 0.13 | 0.00 | python-exact |
+| prefilter_exact | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 4730.65 | 0.21 | 0.00 | python-exact |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 0.020 | 563.70 | 1.99 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 0.080 | 558.71 | 2.16 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 320 | 0.390 | 568.21 | 1.78 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 1000 | 1.000 | 543.71 | 2.05 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 0.060 | 549.35 | 2.20 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 0.320 | 545.94 | 2.39 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 320 | 1.000 | 584.97 | 1.74 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 1000 | 1.000 | 579.40 | 1.74 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 0.180 | 595.59 | 1.70 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 0.760 | 582.71 | 1.76 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 320 | 1.000 | 523.99 | 2.41 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 1000 | 1.000 | 489.75 | 2.29 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.020 | 558.82 | 2.06 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 571.84 | 1.81 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 320 | 0.390 | 565.09 | 1.95 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 1000 | 1.000 | 544.62 | 2.00 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.060 | 566.32 | 1.94 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.320 | 545.66 | 2.46 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 320 | 1.000 | 571.20 | 1.79 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 1000 | 1.000 | 563.50 | 1.80 | 0.00 | python-postfilter-top1000 |
+| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.190 | 587.77 | 1.73 | 0.00 | python-postfilter-top20 |
+| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.770 | 578.66 | 1.81 | 0.00 | python-postfilter-top80 |
+| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 320 | 1.000 | 561.59 | 1.87 | 0.00 | python-postfilter-top320 |
+| postfilter_topn | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 1000 | 1.000 | 570.40 | 1.81 | 0.00 | python-postfilter-top1000 |
 
 ## Candidate-expansion recovery (scenario C)
 
