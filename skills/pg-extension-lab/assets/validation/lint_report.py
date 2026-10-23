@@ -22,7 +22,8 @@ HEADLINE_LINES = 15
 
 # Timing figures that a shared host cannot make SOLID.
 PERF_PATTERN = r"\bqps\b|\bp(?:50|95|99)|\blatency\b|_ms\b|\bms\b"
-TIMING_CELL = re.compile(r"\bqps\b|\bp(?:50|95|99)\b|\blatency\b|\bms\b", re.IGNORECASE)
+# Header cells are matched by token so snake_case names (p95_ms, recall_at_k) count too.
+TIMING_TOKENS = {"qps", "p50", "p95", "p99", "ms", "latency", "throughput"}
 SEPARATOR_ROW = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
 
 
@@ -36,12 +37,16 @@ def table_header_cells(text: str) -> list[str]:
     return cells
 
 
+def tokens(cell: str) -> set[str]:
+    return set(re.split(r"[^a-z0-9]+", cell.lower())) - {""}
+
+
 def lint(text: str, name: str) -> list[Finding]:
     findings: list[Finding] = []
     lines = text.splitlines()
     headline = "\n".join(lines[:HEADLINE_LINES]).lower()
     headers = table_header_cells(text)
-    timing_cells = [cell for cell in headers if TIMING_CELL.search(cell)]
+    timing_cells = [cell for cell in headers if tokens(cell) & TIMING_TOKENS]
 
     if not re.search(r"run[_ ]?id", text, re.IGNORECASE):
         findings.append(("error", "RPT-RUNID",
@@ -57,9 +62,9 @@ def lint(text: str, name: str) -> list[Finding]:
     else:
         # Per metric: each timing column is labeled INDICATIVE in its own header, never SOLID,
         # and a quality column is never INDICATIVE. Prose-only reports fall back to one label.
-        mislabeled = [cell for cell in timing_cells if "INDICATIVE" not in cell or "SOLID" in cell]
-        mislabeled += [cell for cell in headers if re.search(r"\brecall\b", cell, re.IGNORECASE)
-                       and "INDICATIVE" in cell]
+        mislabeled = [cell for cell in timing_cells
+                      if "indicative" not in tokens(cell) or "solid" in tokens(cell)]
+        mislabeled += [cell for cell in headers if {"recall", "indicative"} <= tokens(cell)]
         if mislabeled:
             findings.append(("error", "RPT-TRUST-SPLIT",
                              f"{name}: columns with the wrong trust label {mislabeled} — timing "
@@ -82,11 +87,11 @@ def lint_filtered_ann(headers: list[str], name: str) -> list[Finding]:
     """PROFILE — reports whose header declares `profile: filtered-ann`. Checks the result-table
     columns, not prose, so boilerplate cannot satisfy them."""
     findings: list[Finding] = []
-    if not any(re.search(r"pass[ _]rate", cell, re.IGNORECASE) for cell in headers):
+    if not any({"pass", "rate"} <= tokens(cell) for cell in headers):
         findings.append(("error", "RPT-PASSRATE",
                          f"{name}: filtered-ann report without a measured pass-rate column — show "
                          "the realized selectivity next to the configured one"))
-    if not any(re.search(r"\brecall\b", cell, re.IGNORECASE) for cell in headers):
+    if not any("recall" in tokens(cell) for cell in headers):
         findings.append(("warn", "RPT-RECALL",
                          f"{name}: no recall column — engine comparisons must be at matched "
                          "recall, not matched knobs"))

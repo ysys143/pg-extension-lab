@@ -80,6 +80,16 @@ class ReportLintTest(unittest.TestCase):
         text = HEADER + table("recall (INDICATIVE)", "qps (INDICATIVE)", "p95 ms (INDICATIVE)")
         self.assertIn("RPT-TRUST-SPLIT", self.errors(text))
 
+    def test_snake_case_headers_are_checked(self):
+        for header in ("p95_ms (SOLID)", "p99_ms", "latency_ms (SOLID)", "throughput (SOLID)"):
+            text = HEADER + table("recall (SOLID)", header)
+            self.assertIn("RPT-TRUST-SPLIT", self.errors(text), header)
+        self.assertIn("RPT-TRUST-SPLIT", self.errors(HEADER + table("recall_at_k (INDICATIVE)", "qps (INDICATIVE)")))
+
+    def test_snake_case_filtered_ann_report_passes(self):
+        text = FILTERED + table("selectivity", "pass_rate", "recall_at_k (SOLID)", "p95_ms (INDICATIVE)")
+        self.assertEqual(lint_report.lint(text, "r.md"), [])
+
     def test_one_unlabeled_timing_column_fails(self):
         text = HEADER + table("recall (SOLID)", "qps (INDICATIVE)", "p95 ms")
         self.assertIn("RPT-TRUST-SPLIT", self.errors(text))
