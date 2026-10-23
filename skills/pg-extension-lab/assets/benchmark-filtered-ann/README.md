@@ -82,9 +82,9 @@ report's `plan` column records what EXPLAIN says actually ran.
 | C | `scenarios/c_candidate_expansion.py` | `force_index` | for every selectivity, recall recovering as candidate expansion grows: the lowest knob reaching `run.recall_threshold`, and the best cell when none does |
 | D | `scenarios/d_correlation.py` | `force_index` | correlation stress: queries whose neighborhood fails the filter; the uncorrelated fixture is the control |
 
-On a target that cannot force a plan (the in-memory models), B's cells equal A's
-lowest-selectivity cells. On a database they differ whenever the planner would pick an exact
-scan.
+B's cells are the same measurement as C's lowest-selectivity cells, and on a target that cannot
+force a plan (the in-memory models) also as A's. B exists so the failure point can be run and
+read alone (`--scenario b`). Do not sum cells across scenarios.
 
 ## What the numbers mean
 

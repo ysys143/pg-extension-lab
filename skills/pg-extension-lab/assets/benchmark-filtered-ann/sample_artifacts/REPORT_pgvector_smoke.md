@@ -1,6 +1,6 @@
 # Filtered ANN benchmark report
 
-- run_id: `20261023-145558`
+- run_id: `20261023-150644`
 - profile: filtered-ann
 - command: `python run_bench.py --config bench_config.pgvector-example.toml --output sample_artifacts/results_pgvector_smoke.json`
 - pgvector_example: extension_version 0.8.7, postgres_version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -20,91 +20,92 @@ construction.
 
 | target | fixture | scenario | sel | pass rate | k | search | recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) | pages/query (INDICATIVE) | plan |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 1.000 | 2278.60 | 0.58 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 40 | 1.000 | 1338.68 | 1.23 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 1.000 | 538.44 | 4.59 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 160 | 1.000 | 2138.05 | 1.01 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 1.000 | 2011.60 | 0.80 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 40 | 1.000 | 2328.67 | 0.83 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 1.000 | 2234.80 | 0.71 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 160 | 1.000 | 2731.21 | 0.47 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 1.000 | 2282.76 | 0.51 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 40 | 1.000 | 1652.01 | 1.09 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 1.000 | 1868.31 | 1.29 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 160 | 1.000 | 2521.88 | 0.54 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.000 | 2793.78 | 0.42 | 373.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 40 | 0.050 | 2197.88 | 0.48 | 498.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 2046.94 | 0.53 | 711.20 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 160 | 0.100 | 1270.26 | 1.71 | 1140.20 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 20 | 0.000 | 2056.82 | 1.00 | 373.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 40 | 0.050 | 1999.92 | 0.64 | 498.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 80 | 0.080 | 1482.95 | 0.90 | 711.20 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 160 | 0.100 | 1156.52 | 1.73 | 1140.20 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.100 | 1798.22 | 0.93 | 372.00 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 40 | 0.110 | 1774.50 | 0.71 | 493.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.130 | 1641.25 | 0.82 | 698.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 160 | 0.200 | 1260.23 | 1.00 | 1117.20 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 20 | 0.160 | 2265.28 | 0.54 | 371.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 40 | 0.200 | 2349.51 | 0.49 | 490.60 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 80 | 0.220 | 1983.21 | 0.64 | 687.80 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 160 | 0.350 | 1516.31 | 0.93 | 1091.40 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.000 | 2729.13 | 0.40 | 360.00 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 40 | 0.000 | 1680.26 | 1.81 | 483.40 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.000 | 2131.40 | 0.59 | 699.00 | Limit > Index Scan (force_index) |
-| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 160 | 0.000 | 1518.35 | 0.83 | 1121.60 | Limit > Index Scan (force_index) |
-| prefilter_exact | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 7449.02 | 0.26 | 0.00 | python-exact (planner) |
-| prefilter_exact | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 2824.39 | 0.46 | 0.00 | python-exact (planner) |
-| prefilter_exact | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 1865.90 | 0.69 | 0.00 | python-exact (planner) |
-| prefilter_exact | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 8482.06 | 0.13 | 0.00 | python-exact (force_index) |
-| prefilter_exact | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | - | 1.000 | 20838.76 | 0.05 | 0.00 | python-exact (force_index) |
-| prefilter_exact | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 9628.11 | 0.11 | 0.00 | python-exact (force_index) |
-| prefilter_exact | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | - | 1.000 | 5573.75 | 0.19 | 0.00 | python-exact (force_index) |
-| prefilter_exact | correlated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 5739.15 | 0.18 | 0.00 | python-exact (force_index) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 1.000 | 2552.11 | 0.41 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 40 | 1.000 | 1860.57 | 1.34 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 1.000 | 2448.83 | 0.49 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 160 | 1.000 | 2638.93 | 0.42 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 1.000 | 2585.37 | 0.44 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 40 | 1.000 | 2309.20 | 0.55 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 1.000 | 2488.88 | 0.42 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 160 | 1.000 | 1390.76 | 1.15 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 1.000 | 2378.92 | 0.52 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 40 | 1.000 | 2117.77 | 0.67 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 1.000 | 2159.38 | 0.57 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 160 | 1.000 | 2303.53 | 0.50 | 42.00 | Limit > Sort > Seq Scan (planner) |
-| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.020 | 1906.71 | 0.59 | 802.80 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 40 | 0.030 | 2116.36 | 0.59 | 1200.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 1814.50 | 0.67 | 1708.40 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 160 | 0.190 | 435.67 | 6.33 | 2361.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 20 | 0.020 | 181.16 | 15.77 | 802.80 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 40 | 0.030 | 2072.95 | 0.62 | 1200.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 80 | 0.080 | 1681.91 | 0.75 | 1708.40 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 160 | 0.190 | 1538.76 | 0.81 | 2361.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.060 | 2077.08 | 0.68 | 802.80 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 40 | 0.110 | 1921.74 | 0.69 | 1200.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.320 | 1470.97 | 1.00 | 1708.40 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 160 | 0.750 | 1443.24 | 0.79 | 2353.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 20 | 0.170 | 2136.12 | 0.60 | 802.80 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 40 | 0.360 | 1990.43 | 0.70 | 1200.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 80 | 0.760 | 692.51 | 2.12 | 1704.40 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 160 | 1.000 | 1594.19 | 0.67 | 2241.00 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.190 | 2093.91 | 0.57 | 805.20 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 40 | 0.430 | 182.07 | 10.61 | 1179.60 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.770 | 1965.04 | 0.60 | 1698.80 | Limit > Index Scan (force_index) |
-| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 160 | 0.980 | 1651.25 | 0.66 | 2240.40 | Limit > Index Scan (force_index) |
-| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 8829.70 | 0.12 | 0.00 | python-exact (planner) |
-| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 3921.82 | 0.28 | 0.00 | python-exact (planner) |
-| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 5303.28 | 0.20 | 0.00 | python-exact (planner) |
-| prefilter_exact | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 20648.70 | 0.07 | 0.00 | python-exact (force_index) |
-| prefilter_exact | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | - | 1.000 | 21794.42 | 0.05 | 0.00 | python-exact (force_index) |
-| prefilter_exact | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 8788.96 | 0.16 | 0.00 | python-exact (force_index) |
-| prefilter_exact | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | - | 1.000 | 5265.12 | 0.22 | 0.00 | python-exact (force_index) |
-| prefilter_exact | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 5400.05 | 0.19 | 0.00 | python-exact (force_index) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 1.000 | 2565.61 | 0.44 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 40 | 1.000 | 2841.11 | 0.42 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 1.000 | 3011.75 | 0.39 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 160 | 1.000 | 2499.64 | 0.64 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 1.000 | 2564.73 | 0.60 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 40 | 1.000 | 1456.30 | 1.27 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 1.000 | 1541.27 | 1.22 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 160 | 1.000 | 1523.96 | 1.13 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 1.000 | 594.65 | 5.40 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 40 | 1.000 | 958.06 | 1.09 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 1.000 | 1949.82 | 0.61 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 160 | 1.000 | 2184.96 | 0.55 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.000 | 546.07 | 4.56 | 394.40 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 40 | 0.050 | 1241.37 | 1.09 | 514.60 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 460.31 | 8.87 | 725.20 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | 160 | 0.100 | 1003.90 | 1.57 | 1154.20 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 20 | 0.000 | 1188.54 | 1.32 | 394.40 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 40 | 0.050 | 2067.33 | 0.82 | 514.60 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 80 | 0.080 | 1571.03 | 0.93 | 725.20 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | 160 | 0.100 | 1313.36 | 1.46 | 1154.20 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.100 | 2203.61 | 0.55 | 392.80 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 40 | 0.110 | 1873.90 | 0.60 | 509.60 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.130 | 1893.48 | 0.58 | 712.60 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | 160 | 0.200 | 1269.01 | 1.62 | 1131.20 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 20 | 0.160 | 1555.23 | 0.99 | 392.40 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 40 | 0.200 | 1665.36 | 0.82 | 506.60 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 80 | 0.220 | 1916.08 | 0.64 | 701.80 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | 160 | 0.350 | 1723.40 | 0.66 | 1105.40 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.000 | 2008.50 | 0.57 | 357.60 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 40 | 0.000 | 1625.99 | 1.30 | 479.60 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.000 | 1819.31 | 0.65 | 695.20 | Limit > Index Scan (force_index) |
+| pgvector_example | correlated | d_correlation | 0.100 | 0.100 | 10 | 160 | 0.000 | 1613.67 | 0.70 | 1117.80 | Limit > Index Scan (force_index) |
+| prefilter_exact | correlated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 3390.31 | 0.49 | 0.00 | python-exact (planner) |
+| prefilter_exact | correlated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 2510.88 | 0.47 | 0.00 | python-exact (planner) |
+| prefilter_exact | correlated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 3872.65 | 0.46 | 0.00 | python-exact (planner) |
+| prefilter_exact | correlated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 22127.95 | 0.05 | 0.00 | python-exact (force_index) |
+| prefilter_exact | correlated | c_candidate_expansion | 0.010 | 0.010 | 10 | - | 1.000 | 22503.52 | 0.05 | 0.00 | python-exact (force_index) |
+| prefilter_exact | correlated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 9662.22 | 0.11 | 0.00 | python-exact (force_index) |
+| prefilter_exact | correlated | c_candidate_expansion | 0.100 | 0.100 | 10 | - | 1.000 | 5662.38 | 0.18 | 0.00 | python-exact (force_index) |
+| prefilter_exact | correlated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 5630.63 | 0.19 | 0.00 | python-exact (force_index) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 20 | 1.000 | 2013.15 | 0.68 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 40 | 1.000 | 2208.44 | 0.52 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 80 | 1.000 | 2269.01 | 0.48 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | 160 | 1.000 | 1545.62 | 0.88 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 20 | 1.000 | 2127.74 | 0.56 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 40 | 1.000 | 744.37 | 2.72 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 80 | 1.000 | 1819.20 | 0.77 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | 160 | 1.000 | 256.56 | 14.12 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 20 | 1.000 | 1143.55 | 1.73 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 40 | 1.000 | 1670.58 | 0.72 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 80 | 1.000 | 2335.97 | 0.44 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | 160 | 1.000 | 1837.39 | 0.63 | 42.00 | Limit > Sort > Seq Scan (planner) |
+| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 20 | 0.020 | 1257.71 | 1.18 | 809.20 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 40 | 0.030 | 959.62 | 1.40 | 1208.00 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 80 | 0.080 | 1340.49 | 1.13 | 1717.80 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | 160 | 0.190 | 1425.09 | 0.76 | 2372.20 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 20 | 0.020 | 1690.83 | 0.96 | 809.20 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 40 | 0.030 | 1470.08 | 1.07 | 1208.00 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 80 | 0.080 | 1745.14 | 0.65 | 1717.80 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | 160 | 0.190 | 1278.49 | 0.93 | 2372.20 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 20 | 0.060 | 1957.75 | 0.59 | 809.20 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 40 | 0.110 | 1494.01 | 1.51 | 1208.00 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 80 | 0.320 | 1527.52 | 0.78 | 1717.80 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | 160 | 0.750 | 1529.92 | 0.73 | 2364.20 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 20 | 0.170 | 439.61 | 9.68 | 809.20 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 40 | 0.360 | 1869.42 | 0.64 | 1208.00 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 80 | 0.760 | 1639.77 | 0.71 | 1713.80 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | 160 | 1.000 | 978.67 | 1.47 | 2251.60 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 20 | 0.190 | 1943.51 | 0.58 | 810.00 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 40 | 0.430 | 1871.55 | 0.63 | 1186.40 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 80 | 0.770 | 1617.83 | 0.71 | 1699.40 | Limit > Index Scan (force_index) |
+| pgvector_example | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | 160 | 0.980 | 1342.86 | 0.80 | 2241.00 | Limit > Index Scan (force_index) |
+| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.010 | 0.010 | 10 | - | 1.000 | 7752.19 | 0.19 | 0.00 | python-exact (planner) |
+| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.050 | 0.050 | 10 | - | 1.000 | 1428.78 | 1.60 | 0.00 | python-exact (planner) |
+| prefilter_exact | uncorrelated | a_selectivity_sweep | 0.100 | 0.100 | 10 | - | 1.000 | 2013.90 | 0.51 | 0.00 | python-exact (planner) |
+| prefilter_exact | uncorrelated | b_postfilter_recall | 0.010 | 0.010 | 10 | - | 1.000 | 9806.72 | 0.13 | 0.00 | python-exact (force_index) |
+| prefilter_exact | uncorrelated | c_candidate_expansion | 0.010 | 0.010 | 10 | - | 1.000 | 21617.74 | 0.05 | 0.00 | python-exact (force_index) |
+| prefilter_exact | uncorrelated | c_candidate_expansion | 0.050 | 0.050 | 10 | - | 1.000 | 9352.35 | 0.11 | 0.00 | python-exact (force_index) |
+| prefilter_exact | uncorrelated | c_candidate_expansion | 0.100 | 0.100 | 10 | - | 1.000 | 5389.99 | 0.19 | 0.00 | python-exact (force_index) |
+| prefilter_exact | uncorrelated | d_correlation | 0.100 | 0.100 | 10 | - | 1.000 | 5446.87 | 0.19 | 0.00 | python-exact (force_index) |
 
 ## Candidate-expansion recovery (scenario C, index path forced)
 
 Lowest search value reaching recall >= 0.94; when none does, the
-best cell is the max-recall operating point. `plan` belongs to the best cell.
+best cell is the max-recall operating point. A recovery cell that ran an exact path
+(a Sort node) or mixed plans is marked; `plan` belongs to the best cell.
 
 | target | fixture | sel | recovery search value | best recall @ search | plan |
 |---|---|---:|---:|---:|---|

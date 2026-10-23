@@ -21,11 +21,21 @@ def fmt_search(value) -> str:
     return "-" if value is None else str(value)
 
 
-def recovery_label(row: dict) -> str:
-    if row["search_value"] is None:
+def is_exact_path(plan: str) -> bool:
+    """A Sort node means the distance order was computed exactly over the filtered rows."""
+    return "Sort" in plan.split(" > ")
+
+
+def recovery_label(cells: list[dict]) -> str:
+    if cells[0]["search_value"] is None:
         return "no knob"
-    value = row.get("recovery_search_value")
-    return "not reached" if value is None else str(value)
+    value = cells[0].get("recovery_search_value")
+    if value is None:
+        return "not reached"
+    plan = next(str(c.get("plan_summary", "")) for c in cells if c["search_value"] == value)
+    if plan.startswith("mixed:"):
+        return f"{value} (mixed plans)"
+    return f"{value} (exact path)" if is_exact_path(plan) else str(value)
 
 
 def best_label(row: dict) -> str:
@@ -63,24 +73,23 @@ def main() -> int:
             f"{row['pages_total_mean']:.2f} | {row.get('plan_summary', '')} ({row.get('plan_mode', '')}) |"
         )
 
-    recovery_rows: dict[tuple, dict] = {}
+    groups: dict[tuple, list[dict]] = {}
     for row in rows:
         if row["scenario"] == "c_candidate_expansion":
-            key = (row["target"], row["fixture"], row["selectivity"])
-            if row.get("best_search_value") is not None and row["search_value"] == row["best_search_value"]:
-                recovery_rows[key] = row
-            else:
-                recovery_rows.setdefault(key, row)
-    if recovery_rows:
+            groups.setdefault((row["target"], row["fixture"], row["selectivity"]), []).append(row)
+    if groups:
         print("\n## Candidate-expansion recovery (scenario C, index path forced)\n")
         print(f"Lowest search value reaching recall >= {meta.get('recall_threshold')}; when none does, the")
-        print("best cell is the max-recall operating point. `plan` belongs to the best cell.\n")
+        print("best cell is the max-recall operating point. A recovery cell that ran an exact path")
+        print("(a Sort node) or mixed plans is marked; `plan` belongs to the best cell.\n")
         print("| target | fixture | sel | recovery search value | best recall @ search | plan |")
         print("|---|---|---:|---:|---:|---|")
-        for (target, fixture, sel), row in recovery_rows.items():
+        for (target, fixture, sel), cells in groups.items():
+            best = next((c for c in cells if c["search_value"] is not None
+                         and c["search_value"] == c.get("best_search_value")), cells[0])
             print(
-                f"| {target} | {fixture} | {float(sel):.3f} | {recovery_label(row)} | {best_label(row)} | "
-                f"{row.get('plan_summary', '')} |"
+                f"| {target} | {fixture} | {float(sel):.3f} | {recovery_label(cells)} | {best_label(best)} | "
+                f"{best.get('plan_summary', '')} |"
             )
 
     print("\n## Reproduce\n")

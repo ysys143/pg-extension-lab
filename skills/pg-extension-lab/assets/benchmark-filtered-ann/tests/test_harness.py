@@ -5,13 +5,16 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import subprocess
 import sys
 import tempfile
 import time
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 HARNESS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HARNESS))
@@ -226,6 +229,33 @@ class ScenarioTest(unittest.TestCase):
         self.assertEqual(summarize_plans(plans[:2]), "Limit > Index Scan")
 
 
+class FakeConnection:
+    autocommit = False
+    prepare_threshold = 5  # psycopg 3's default
+
+    def close(self):
+        return None
+
+
+class SqlAdapterTest(unittest.TestCase):
+    """The SQL adapters must plan every execution so EXPLAIN describes the timed plan."""
+
+    def test_sql_adapters_turn_off_auto_prepare(self):
+        fake = types.ModuleType("psycopg")
+        setattr(fake, "connect", lambda dsn: FakeConnection())
+        config = {
+            "dataset": {"dims": 4},
+            "postgres_sql": {"dsn": "fake"},
+            "pgvector_example": {"dsn": "fake"},
+        }
+        with mock.patch.dict(sys.modules, {"psycopg": fake}):
+            postgres_sql = importlib.import_module("targets.postgres_sql")
+            pgvector_target = importlib.import_module("examples.pgvector_target")
+            for target in (postgres_sql.create_target(config), pgvector_target.create_target(config)):
+                self.assertIsNone(target.conn.prepare_threshold, type(target).__name__)
+                self.assertTrue(target.conn.autocommit)
+
+
 class ExplainTest(unittest.TestCase):
     def test_plan_summary_shows_the_scan_below_limit(self):
         plan = [{"Plan": {
@@ -337,7 +367,76 @@ enabled = true
 """
 
 
+def report_row(**fields):
+    row = {
+        "target": "t", "fixture": "correlated", "scenario": "c_candidate_expansion", "selectivity": 0.05,
+        "pass_rate": 0.05, "k": 10, "search_value": 20, "recall_at_k": 0.5, "qps": 1.0, "p95_ms": 1.0,
+        "pages_total_mean": 0.0, "plan_summary": "Limit > Index Scan", "plan_mode": "force_index",
+        "recovery_search_value": None, "best_search_value": None, "best_recall": None,
+    }
+    row.update(fields)
+    return row
+
+
+class ReportTest(unittest.TestCase):
+    def render(self, rows):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "r.json"
+            path.write_text(json.dumps({"meta": {"run_id": "x", "command": "python run_bench.py",
+                                                 "profile": "filtered-ann", "recall_threshold": 0.94},
+                                        "results": rows}))
+            proc = subprocess.run([sys.executable, "-B", "report.py", str(path)], cwd=HARNESS,
+                                  capture_output=True, text=True, check=True)
+        return proc.stdout
+
+    def recovery_line(self, text, target):
+        section = text.split("## Candidate-expansion recovery")[1]
+        return next(line for line in section.splitlines() if line.startswith(f"| {target} |"))
+
+    def test_recovery_marks_exact_path_and_shows_best_cell_plan(self):
+        recovered = {"recovery_search_value": 80, "best_search_value": 320, "best_recall": 1.0}
+        text = self.render([
+            report_row(target="t", search_value=20, recall_at_k=0.5, plan_summary="Limit > Bitmap Heap Scan", **recovered),
+            report_row(target="t", search_value=80, recall_at_k=0.95, plan_summary="Limit > Sort > Seq Scan", **recovered),
+            report_row(target="t", search_value=320, recall_at_k=1.0, plan_summary="Limit > Index Scan", **recovered),
+            report_row(target="exact", search_value=None, recall_at_k=1.0, plan_summary="python-exact"),
+        ])
+        self.assertIn("| t | correlated | 0.050 | 80 (exact path) | 1.000 @ 320 | Limit > Index Scan |",
+                      self.recovery_line(text, "t"))
+        self.assertIn("| no knob |", self.recovery_line(text, "exact"))
+        self.assertIn("| pass rate |", text)
+        self.assertIn("| recall (SOLID) | qps (INDICATIVE) | p95 ms (INDICATIVE) |", text)
+
+    def test_recovery_marks_mixed_plans_and_misses(self):
+        mixed = {"recovery_search_value": 20, "best_search_value": 20, "best_recall": 1.0,
+                 "plan_summary": "mixed: Limit > Index Scan x6; Limit > Sort > Seq Scan x4"}
+        text = self.render([
+            report_row(target="m", search_value=20, recall_at_k=1.0, **mixed),
+            report_row(target="n", search_value=20, recall_at_k=0.3, best_search_value=20, best_recall=0.3),
+        ])
+        self.assertIn("| 20 (mixed plans) |", self.recovery_line(text, "m"))
+        self.assertIn("| not reached | 0.300 @ 20 |", self.recovery_line(text, "n"))
+
+
 class EndToEndTest(unittest.TestCase):
+    def test_missing_knob_values_fail_before_any_load(self):
+        setups = []
+
+        class RecordingTarget(PostfilterTopNTarget):
+            def setup(self):
+                setups.append(self)
+                super().setup()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "c.toml"
+            config.write_text(SMALL_CONFIG.replace("search_values = [10, 200]\n", ""))
+            argv = ["run_bench.py", "--config", str(config), "--output", str(Path(tmp) / "o.json")]
+            with mock.patch.object(sys, "argv", argv), \
+                    mock.patch.object(run_bench, "create_target", lambda module, cfg: RecordingTarget(cfg)):
+                with self.assertRaises(SystemExit):
+                    run_bench.main()
+        self.assertEqual(setups, [])
+
     def test_run_bench_writes_labeled_rows_for_every_fixture(self):
         with tempfile.TemporaryDirectory() as tmp:
             config, output = Path(tmp) / "c.toml", Path(tmp) / "out.json"

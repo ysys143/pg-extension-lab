@@ -1,8 +1,8 @@
 """Scenario B: post-filter recall failure at the lowest selectivity, index path forced.
 
-For a target that cannot force a plan (the in-memory models) these cells equal A's
-lowest-selectivity cells; on a database target they differ whenever the planner would have
-chosen an exact scan.
+B's cells are the same measurement as C's lowest-selectivity cells (and, for a target that
+cannot force a plan, A's). B exists so the failure point can be run and read alone
+(`--scenario b`); do not sum cells across scenarios.
 """
 
 from __future__ import annotations

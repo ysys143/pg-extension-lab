@@ -20,6 +20,10 @@ class Target(Protocol):
     instead of repeating identical cells for every knob value. Order results by L2 distance: the
     exact oracle does (`targets/_metric.py`). An optional `describe()` returns version facts
     (e.g. postgres_version, extension_version) that the runner copies into the artifact.
+
+    SQL adapters must plan every execution (psycopg 3: `conn.prepare_threshold = None`). EXPLAIN
+    is always planned afresh, but an auto-prepared query can reuse a cached generic plan that
+    ignores `force_index_scan`, so the plan label and the timed run would differ.
     """
 
     name: str

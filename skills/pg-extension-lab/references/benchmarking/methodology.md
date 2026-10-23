@@ -171,6 +171,12 @@ Filtered ANN: external-engine settling and pgvector `iterative_scan` configurati
   decides cache warmth and biases the frontier.
 - `EXPLAIN (ANALYZE)` executes the query again. Its buffer counts describe that re-execution
   (usually warmer), not the timed call; label them that way.
+- **Make the timed query use the plan EXPLAIN reports.** EXPLAIN is planned afresh every time,
+  but a driver's auto-prepared statement can switch to a cached generic plan that ignores later
+  planner settings (`enable_seqscan`, forced plans). Plan every timed execution (psycopg 3:
+  `prepare_threshold = None`), or the plan label and the measured run describe different plans.
+  In the filtered-ANN harness this made a forced-index cell report exact-path recall under an
+  `Index Scan` label.
 - **Name what a QPS number is.** Serial single-client QPS is the inverse of latency, not
   throughput. Real throughput needs multiprocessing clients (no GIL cap), each system isolated
   on the shared cores, a concurrency sweep, and fixed steady-state windows

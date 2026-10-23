@@ -162,43 +162,52 @@ def main() -> int:
         print("WARN far-queries: max selectivity > 0.5 leaves too little room above the passing "
               "range; scenario D will not stress correlation", file=sys.stderr)
     results = []
-    target_info: dict[str, dict] = {}
     started = time.time()
-    for fixture in fixtures:
-        rows = make_dataset(rows_n, dims, seed, fixture)
-        for warning in pass_rate_warnings(rows, selectivities):
-            print(f"WARN pass-rate [{fixture}] {warning}", file=sys.stderr)
-        workload = make_workload(int(config["run"]["queries"]), dims, seed, fixture, max_selectivity)
-        exact = create_exact(config)
-        try:
-            exact.setup()
-            exact.insert_batch(rows)
-            for target_name, module_name in target_specs:
-                target = create_target(module_name, config)
-                try:
-                    target.setup()
-                    target.insert_batch(rows)
-                    if target_name not in target_info:
-                        target_info[target_name] = getattr(target, "describe", dict)()
-                    search_values = search_values_for(config, target_name, target)
-                    for key in scenario_keys:
-                        scenario = importlib.import_module(SCENARIOS[key])
-                        for row in scenario.run(config, target, exact, workload, search_values):
-                            row.update({
-                                "target": target_name,
-                                "dataset": dataset["name"],
-                                "fixture": fixture,
-                                "pass_rate": pass_rate(rows, row["filter_value"]),
-                                "k": k,
-                                "trust_recall": "SOLID",
-                                "trust_perf": "INDICATIVE",
-                            })
-                            results.append(row)
-                finally:
-                    target.teardown()
-                    target.close()
-        finally:
-            exact.close()
+    # Create every target and resolve its knob sweep before loading anything, so a missing
+    # search_values fails before any load and each target keeps one connection for all fixtures.
+    opened = []
+    targets = []
+    try:
+        for target_name, module_name in target_specs:
+            target = create_target(module_name, config)
+            opened.append(target)
+            targets.append((target_name, target, search_values_for(config, target_name, target)))
+        target_info: dict[str, dict] = {}
+        for fixture in fixtures:
+            rows = make_dataset(rows_n, dims, seed, fixture)
+            for warning in pass_rate_warnings(rows, selectivities):
+                print(f"WARN pass-rate [{fixture}] {warning}", file=sys.stderr)
+            workload = make_workload(int(config["run"]["queries"]), dims, seed, fixture, max_selectivity)
+            exact = create_exact(config)
+            try:
+                exact.setup()
+                exact.insert_batch(rows)
+                for target_name, target, search_values in targets:
+                    try:
+                        target.setup()
+                        target.insert_batch(rows)
+                        if target_name not in target_info:
+                            target_info[target_name] = getattr(target, "describe", dict)()
+                        for key in scenario_keys:
+                            scenario = importlib.import_module(SCENARIOS[key])
+                            for row in scenario.run(config, target, exact, workload, search_values):
+                                row.update({
+                                    "target": target_name,
+                                    "dataset": dataset["name"],
+                                    "fixture": fixture,
+                                    "pass_rate": pass_rate(rows, row["filter_value"]),
+                                    "k": k,
+                                    "trust_recall": "SOLID",
+                                    "trust_perf": "INDICATIVE",
+                                })
+                                results.append(row)
+                    finally:
+                        target.teardown()
+            finally:
+                exact.close()
+    finally:
+        for target in opened:
+            target.close()
 
     artifact = {
         "meta": {
