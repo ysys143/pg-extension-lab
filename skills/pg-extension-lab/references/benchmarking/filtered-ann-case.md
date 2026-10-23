@@ -35,7 +35,8 @@ pgvector 0.8.7) reproduces the case in miniature:
   path.
 - B–D: with the HNSW index forced, B's 1% post-filter recall stays at 0.00–0.10 on the correlated
   fixture.
-- C never reaches 0.94 on the correlated fixture; its best is 0.35 at `ef` 160 for 10%.
+- C never reaches the 0.94 recall threshold on the correlated fixture; its best is 0.35 at
+  `ef` 160 for 10%.
 - D's correlated far queries get recall 0.0 at every `ef` from 20 to 160, while the
   uncorrelated control climbs from 0.19 to 0.98.
 

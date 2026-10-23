@@ -115,8 +115,9 @@ report:
   - A: at 1,000 rows the planner picks `Seq Scan > Sort`, so its recall of 1.0 is the exact path.
   - B, C, D force the HNSW `Index Scan`. At 1% selectivity, B's post-filter recall is 0.00 → 0.10
     over `ef` 20 → 160 on the correlated fixture.
-  - C never reaches 0.94 on the correlated fixture; its best cells are 0.10 / 0.20 / 0.35 at
-    `ef` 160. The uncorrelated fixture reaches 0.94 only at 10% (`ef` 160).
+  - C never reaches the 0.94 recall threshold on the correlated fixture; its best cells are
+    0.10 / 0.20 / 0.35 at `ef` 160. The uncorrelated fixture crosses the threshold only at 10%,
+    with recall 1.000 at `ef` 160.
   - D gives 0.0 at every `ef` on correlated far queries, while the uncorrelated control climbs
     from 0.19 to 0.98.
 
