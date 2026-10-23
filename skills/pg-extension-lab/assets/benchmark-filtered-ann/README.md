@@ -89,8 +89,15 @@ python run_bench.py --config bench_config.pgvector-example.toml --scenario a
   every column.
 - Targets with `has_search_knob = False` run each cell once with `search_value = null`.
 
-`sample_artifacts/` holds a real run of the shipped config; regenerate it with the commands in
-its `REPORT_smoke.md`.
+`sample_artifacts/` holds real runs, each regenerated with the commands at the bottom of its
+report:
+
+- `REPORT_smoke.md` — the shipped config, no database.
+- `REPORT_pgvector_smoke.md` — `bench_config.pgvector-example.toml` against
+  `docker run -d --rm -e POSTGRES_PASSWORD=postgres -p 5432:5432 pgvector/pgvector:pg17`
+  (pgvector 0.8.7). At 1,000 rows the planner picks `Seq Scan > Sort` for scenarios A–C, so
+  their recall of 1.0 is the exact path; scenario D forces `Index Scan` and shows HNSW recall
+  of 0.0 on correlated far queries against 0.19 → 0.98 on the uncorrelated control.
 
 ## Target adapter contract
 

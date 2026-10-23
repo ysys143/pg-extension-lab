@@ -28,6 +28,12 @@ gate rules (`CFG-SELECTIVITY`, `CFG-ADVERSARIAL`, `RPT-PASSRATE`, `RPT-RECALL`).
 | C — candidate-expansion recovery | `scenarios/c_candidate_expansion.py` | progressive recall recovery as candidate expansion grows; the lowest knob reaching the recall threshold |
 | D — correlation stress | `scenarios/d_correlation.py` | queries whose neighborhood fails the filter, index path forced; the uncorrelated fixture is the control |
 
+The harness's pgvector sample (`sample_artifacts/REPORT_pgvector_smoke.md`, 1,000 rows,
+pgvector 0.8.7) reproduces D in miniature. With the index forced, correlated far queries get
+recall 0.0 at every `ef` from 20 to 160, while the uncorrelated control climbs from 0.19 to 0.98.
+At that size the planner chose `Seq Scan > Sort` for A–C, so their 1.0 is the exact path. The
+report's `plan` column is what tells the two apart.
+
 ## Contents
 
 - [1. Fixture design — adversarial, not friendly](#1-fixture-design--adversarial-not-friendly)
